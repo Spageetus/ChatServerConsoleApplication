@@ -140,6 +140,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ChatServerConsoleApplication.cpp" />
+    <ClCompile Include="Client.cpp" />
+    <ClCompile Include="CommandHandler.cpp" />
+    <ClCompile Include="platform.cpp" />
+    <ClCompile Include="Server.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Client.h" />
+    <ClInclude Include="CommandHandler.h" />
+    <ClInclude Include="definitions.h" />
+    <ClInclude Include="platform.h" />
+    <ClInclude Include="Server.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

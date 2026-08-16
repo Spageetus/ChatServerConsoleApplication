@@ -1,20 +1,59 @@
-// ChatServerConsoleApplication.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
+//#include "definitions.h"
+#include "Server.h"
 
 #include <iostream>
 
 int main()
 {
-    std::cout << "Hello World!\n";
+    const int SERVER_LISTEN_PORT = 31337;
+    const int MAX_CONNECTIONS = 1;
+
+    char* readBuffer = new char[256];
+
+    //setup the server
+    Server server;
+    StatusCode result = server.init(SERVER_LISTEN_PORT, MAX_CONNECTIONS);
+    if (result != StatusCode::SUCCESS)
+    {
+        std::cout << "Server init failed with code: " << (int)result << std::endl;
+        server.stop();
+        return (int)result;
+    }
+
+    std::cout << "Server Initialized on port " << SERVER_LISTEN_PORT << " with up to " << MAX_CONNECTIONS << " connections!" << std::endl;
+    
+    //accept an incoming connection
+    result = server.acceptIncomingConnections();
+
+    if (result != StatusCode::SUCCESS)
+    {
+        std::cout << "Server accept failed with code: " << (int)result << std::endl;
+        
+        return (int)result;
+    }
+
+    std::cout << "Server accepted incoming connections!" << std::endl;
+
+    //read a message
+    std::cout << "Waiting for a message from the client..." << std::endl;
+    result = server.readMessage(readBuffer);
+    if (result != StatusCode::SUCCESS)
+    {
+        std::cout << "Server read failed with code: " << (int)result << std::endl;
+        return (int)result;
+    }
+    std::cout << "[Recieved Message] " << readBuffer << std::endl;
+
+    std::cout << "Send a message to the client" << std::endl;
+    //send a message
+    char* message = new char[256];
+    std::cin.getline(message, 256);
+    result = server.sendMessage(message, sizeof(message));
+    if (result != StatusCode::SUCCESS) return (int)result;
+    std::cout << "[Sent] " << message << std::endl;
+
+
+
+    server.stop();
 }
 
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
