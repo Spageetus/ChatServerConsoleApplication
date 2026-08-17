@@ -21,40 +21,37 @@ int main()
     }
 
     std::cout << "Server Initialized on port " << SERVER_LISTEN_PORT << " with up to " << MAX_CONNECTIONS << " connections!" << std::endl;
+
+    server.getHostName();
     
-    //accept an incoming connection
-    result = server.acceptIncomingConnections();
-
-    if (result != StatusCode::SUCCESS)
-    {
-        std::cout << "Server accept failed with code: " << (int)result << std::endl;
-        
-        return (int)result;
-    }
-
-    std::cout << "Server accepted incoming connections!" << std::endl;
-
-    while (server.isActive())
-    {
-        //read a message
-        std::cout << "Waiting for a message from the client..." << std::endl;
-        result = server.readMessage(readBuffer);
-        if (result != StatusCode::SUCCESS)
-        {
-            std::cout << "Server read failed with code: " << (int)result << std::endl;
-            return (int)result;
-        }
-        std::cout << "[Recieved Message] " << readBuffer << std::endl;
-
-        std::cout << "Send a message to the client" << std::endl;
-        //send a message
-        char* message = new char[256];
-        std::cin.getline(message, 256);
-        result = server.sendMessage(message, std::strlen(message));
-        if (result != StatusCode::SUCCESS) return (int)result;
-        std::cout << "[Sent] " << message << std::endl;
-
-    }
+    server.run();
     server.stop();
 }
 
+
+/*
+    ###### TODOS #####
+    Make max connections actually function
+    format relayed messages like so:
+        <username>: message
+                or
+        [SERVER]: message
+
+    Figure out how to allow the server to be shutdown gracefully instead of just closing the program 
+
+*/
+
+/*
+*   ##### ASSIGNMENT TODOS #####
+        1.1 
+            - on server startup, prompt user for TCP port number, chat capacity, and the command character
+            - display the server host ip and port using gethostname() and getaddrinfo() to the server console when started
+        1.2
+            - transmit a welcome message to clients upon connection
+            - display command character
+        1.3
+            - help command
+        1.4
+            - add user registration via the /register <username> <password> commmand (store details in a hashtable for uniqueness
+
+*/
