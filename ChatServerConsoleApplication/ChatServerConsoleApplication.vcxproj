@@ -141,12 +141,16 @@
   <ItemGroup>
     <ClCompile Include="ChatServerConsoleApplication.cpp" />
     <ClCompile Include="Client.cpp" />
+    <ClCompile Include="ClientHandler.cpp" />
+    <ClCompile Include="ClientList.cpp" />
     <ClCompile Include="CommandHandler.cpp" />
     <ClCompile Include="platform.cpp" />
     <ClCompile Include="Server.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
+    <ClInclude Include="ClientHandler.h" />
+    <ClInclude Include="ClientList.h" />
     <ClInclude Include="CommandHandler.h" />
     <ClInclude Include="definitions.h" />
     <ClInclude Include="platform.h" />

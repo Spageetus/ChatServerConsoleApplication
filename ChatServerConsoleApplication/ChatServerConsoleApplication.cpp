@@ -1,9 +1,30 @@
 //#include "definitions.h"
 #include "Server.h"
+#include "ClientHandler.h"
 
 #include <iostream>
 
+
+///use for testing
 int main()
+{
+    ClientList testList1;
+    SOCKET s1 = 23;
+    Client c1(s1);
+
+    SOCKET s2 = 54;
+    Client c2(s2);
+
+    testList1.add(c1);
+
+    c1.shutdownClient();
+
+    if (testList1.inList(c2)) throw "FUCK";
+    std::cout << "Seems to have worked" << std::endl;
+}
+
+
+int main2()
 {
     const int SERVER_LISTEN_PORT = 31337;
     const int MAX_CONNECTIONS = 1;
@@ -31,6 +52,7 @@ int main()
 
 /*
     ###### TODOS #####
+
     Make max connections actually function
     format relayed messages like so:
         <username>: message
@@ -38,6 +60,7 @@ int main()
         [SERVER]: message
 
     Figure out how to allow the server to be shutdown gracefully instead of just closing the program 
+           - Use SIGINT from <csignal> to catch CTRL+C
 
 */
 
@@ -47,7 +70,6 @@ int main()
             - on server startup, prompt user for TCP port number, chat capacity, and the command character
             - display the server host ip and port using gethostname() and getaddrinfo() to the server console when started
         1.2
-            - transmit a welcome message to clients upon connection
             - display command character
         1.3
             - help command
