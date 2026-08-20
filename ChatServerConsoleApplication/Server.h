@@ -27,6 +27,8 @@ private:
 
 	std::string hostname;
 
+	char* readBuffer;
+
 
 public:
 	static const int32_t MAX_MESSAGE_LENGTH = 256;
@@ -44,7 +46,7 @@ public:
 	StatusCode readMessage(SOCKET clientSock, char* inputBuffer);
 	StatusCode sendMessage(SOCKET clientSock, char* msg, int32_t length);
 	StatusCode relayMessage(SOCKET sourceSocket, char* msg, int32_t length);
-	StatusCode relayMessage(Client sender, ClientList toReceive, std::string msg);
+	StatusCode relayMessage(Client sender, ClientList toReceive, char* msg);
 
 
 	StatusCode runOnce();

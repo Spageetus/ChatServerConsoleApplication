@@ -32,7 +32,7 @@ StatusCode Server::init(uint16_t port, uint16_t maxConnections)
 	if (result == SOCKET_ERROR) return StatusCode::SETUP_ERROR;
 
 	this->welcomeMessage = "[Server]: Welcome to the server!";
-	
+	this->readBuffer = new char[256];
 	//marking server as active
 	this->active = true;
 	return StatusCode::SUCCESS;
@@ -53,12 +53,19 @@ StatusCode Server::readMessage(SOCKET clientSock, char* inputBuffer)
 	if (result == 0) return StatusCode::DISCONNECT;
 	if (result == SOCKET_ERROR) return StatusCode::SHUTDOWN;
 	if (result > msgSize) return StatusCode::PARAMETER_ERROR; //TODO: determine if comparing to size or msgSize is correct
+	//inputBuffer[msgSize] = '\0'; //adding an escape character so I dont keep data from the previous read
 	return StatusCode::SUCCESS;
 }
 
+//TODO: figure out why clients are recieving more data than they should
 StatusCode Server::sendMessage(SOCKET clientSock, char* data, int32_t length)
 {
 	if (length < 0 || length > 255) return StatusCode::PARAMETER_ERROR;
+
+	//fixes the issue of characters from previous messages still being visible.
+	//TODO: try to fix the root cause of the issue
+	data[length] = '\0';
+	length++;
 
 	//first send the length of the message
 	int result = sendTcpData(clientSock, (char*)&length, 1);
@@ -102,7 +109,7 @@ StatusCode Server::relayMessage(SOCKET srcSocket, char* msg, int32_t length)
 	return StatusCode::SUCCESS;
 }
 
-StatusCode Server::relayMessage(Client sender, ClientList toReceive, std::string msg)
+StatusCode Server::relayMessage(Client sender, ClientList toReceive, char* msg)
 {
 	//get a list of all the clients who are ready to recieve the message (theoretically should be all of them)
 	fd_set recipientSockets = toReceive.getReadyWriteSockets();
@@ -110,7 +117,7 @@ StatusCode Server::relayMessage(Client sender, ClientList toReceive, std::string
 	for (int i = 0; i < recipientSockets.fd_count; i++)
 	{
 		SOCKET s = recipientSockets.fd_array[i];
-		StatusCode result = this->sendMessage(s, msg.data(), msg.size());
+		StatusCode result = this->sendMessage(s, msg, strlen(msg));
 		if (result != StatusCode::SUCCESS) return result;
 	}
 	return StatusCode::SUCCESS;
@@ -176,7 +183,7 @@ StatusCode Server::run()
 				//relay the message to all other active clients
 				this->relayMessage(sock, receivedData, strlen(receivedData));
 
-				delete receivedData;
+				delete[] receivedData;
 			}
 		}
 	}
@@ -230,7 +237,7 @@ StatusCode Server::getNewConnections()
 	ClientHandler::addClient(newClient);
 
 	//send the client a welcome message!
-	StatusCode result = this->sendMessage(newClient, this->welcomeMessage.data(), this->welcomeMessage.length());
+	StatusCode result = this->sendMessage(newClient, this->welcomeMessage.data(), this->welcomeMessage.size());
 	if (result != StatusCode::SUCCESS) return result;
 
 	return StatusCode::SUCCESS;
@@ -252,8 +259,7 @@ StatusCode Server::readFrom(ClientList clients)
 			std::cout << "Client does not exist" << std::endl;
 			continue;
 		}
-		char* receivedData = new char[256];
-		StatusCode result = this->readMessage(s, receivedData);
+		StatusCode result = this->readMessage(s, this->readBuffer);
 		if (result == StatusCode::DISCONNECT) //check if socket disconnected
 		{
 			std::cout << currentClient.getUsername() << " has disconnected" << std::endl;
@@ -282,12 +288,16 @@ StatusCode Server::readFrom(ClientList clients)
 			std::cout << "[UNREGISTERED USER] ";
 		}
 
-		std::string formattedMessage = "<" + currentClient.getUsername() + ">: " + receivedData;
-		std::cout << formattedMessage << std::endl;
-		std::cout << formattedMessage.size() << std::endl;
-		std::cout << formattedMessage.data() << std::endl;
-		this->relayMessage(currentClient, ClientHandler::getAllClients(), formattedMessage);
+		//temp code to close the server
+		if (std::string(this->readBuffer) == "shutdown")
+		{
+			return StatusCode::SHUTDOWN;
+		}
 
+		//TODO: replace the message formatting with a message parse to handle commands and shit
+		std::string formattedMessage = "<" + currentClient.getUsername() + ">: " + this->readBuffer + "\0";		this->relayMessage(currentClient, ClientHandler::getAllClients(), formattedMessage.data());
+		std::cout << formattedMessage << std::endl;
+		
 	}
 	return StatusCode::SUCCESS;
 }
@@ -308,6 +318,7 @@ void Server::stop()
 
 	WSACleanup();
 	std::cout << "Stopped server" << std::endl;
+	delete[] this->readBuffer;
 }
 
 
@@ -328,3 +339,4 @@ void Server::removeClient(SOCKET clientSocket)
 	closesocket(clientSocket);
 }
 
+//TODO: try giving the server a separate buffer for writing data (maybe that will fix the issue?)

@@ -26,7 +26,7 @@ int main()
 
     server.getHostName();
 
-    while (ClientHandler::numClients() < 3) //temporary code to auto shutdown server when the number of clients is over 2
+    while (ClientHandler::numClients() < 5) //temporary code to auto shutdown server 
     {
         result = server.runOnce();
         if (result != StatusCode::SUCCESS)
