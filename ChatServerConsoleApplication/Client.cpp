@@ -4,6 +4,17 @@
 //	this->userSocket = clientSocket;
 //}
 
+// sentinel definition (one translation unit)
+const Client Client::InvalidClient = Client(Client::invalidSocket, "<invalid>");
+
+Client::Client(SOCKET sock)
+{
+	this->userSocket = sock;
+	this->username = "Client" + std::to_string(Client::nextClientId);
+	Client::nextClientId++;
+}
+
+
 void Client::shutdownClient()
 {
 	shutdown(this->userSocket, SD_BOTH);
@@ -23,3 +34,4 @@ SOCKET Client::getSocket()
 {
 	return this->userSocket;
 }
+

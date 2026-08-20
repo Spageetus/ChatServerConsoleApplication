@@ -7,6 +7,7 @@
 
 #include "definitions.h"
 #include "platform.h"
+#include "ClientHandler.h"
 
 class Server
 {
@@ -17,6 +18,9 @@ private:
 	uint16_t listenPort;
 
 	fd_set clientSockets;
+
+	fd_set serverSocketContainer;
+
 	bool active = false;
 
 	std::string welcomeMessage;
@@ -40,7 +44,44 @@ public:
 	StatusCode readMessage(SOCKET clientSock, char* inputBuffer);
 	StatusCode sendMessage(SOCKET clientSock, char* msg, int32_t length);
 	StatusCode relayMessage(SOCKET sourceSocket, char* msg, int32_t length);
+	StatusCode relayMessage(Client sender, ClientList toReceive, std::string msg);
+
+
+	StatusCode runOnce();
 	
+	/// <summary>
+	/// Checks if the server's listening socket has been written to (client connecting) then adds them to the list of unregistered clients
+	/// </summary>
+	StatusCode getNewConnections();
 	
+	StatusCode sendWelcomeMessage(Client c);
+
+	StatusCode readFrom(ClientList clients);
+
+	StatusCode listenToRegisteredClients();
+
+	StatusCode listenToUnregisteredClients();
 
 };
+
+/*
+* Server Run Sequence:
+* 1. Check for new connections (if the Listening Socket has been written to)
+*	1a. create a new unregistered Client instance using the accepted connection
+*	1b. privately send the client a welcome message
+*
+* 2. Check for registered users who have sent a message
+*	2a. Parse message
+*		- If message is command: (TEMP) do nothing
+*		- Else: relay the message to all other registered users
+*
+* 3. Check for UNREGISTERED users who have sent a message
+*	3a. Parse Message
+*		- Check for command usage
+*		- If /login used: verify login
+*			- If login success: bind username to the client and mark them as registered
+*			- else: display appropriate error message
+*		- If /register used: attempt to create a new login
+*			- if success: tell user account has been created and to use /login to sign in
+*			- else: display appropriate error message
+*/

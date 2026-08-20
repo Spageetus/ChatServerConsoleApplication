@@ -3,14 +3,17 @@
 StatusCode Server::init(uint16_t port, uint16_t maxConnections)
 {
 	if (this->isActive()) return StatusCode::SUCCESS; //makes sure server cannot be initialized more than once
-
-	this->listenPort = port;
+	
+	//Startup WSA
 	int result = WSAStartup(WINSOCK_VERSION, &wsadata);
 	if (result != 0) return StatusCode::STARTUP_ERROR;
-
+	
+	//setup the server's listening port
+	this->listenPort = port;
 	this->listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (this->listenSocket == INVALID_SOCKET) return StatusCode::SETUP_ERROR;
 
+	//bind the listening socket 
 	sockaddr_in serverAddr;
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
@@ -18,8 +21,12 @@ StatusCode Server::init(uint16_t port, uint16_t maxConnections)
 	result = bind(this->listenSocket, (SOCKADDR*)&serverAddr, sizeof(serverAddr));
 	if (result == SOCKET_ERROR) return StatusCode::BIND_ERROR;
 
-	FD_ZERO(&clientSockets);
-	FD_SET(this->listenSocket, &clientSockets);
+	//store the server's listening socket separate from the rest of the connected sockets
+	FD_ZERO(&this->serverSocketContainer); //clear it just in case
+	FD_SET(this->listenSocket, &this->serverSocketContainer);
+
+	//FD_ZERO(&clientSockets);
+	//FD_SET(this->listenSocket, &clientSockets);
 
 	result = listen(this->listenSocket, maxConnections);
 	if (result == SOCKET_ERROR) return StatusCode::SETUP_ERROR;
@@ -58,16 +65,25 @@ StatusCode Server::sendMessage(SOCKET clientSock, char* data, int32_t length)
 	//check for errors
 	if (result == 0) return StatusCode::DISCONNECT;
 	if (result == SOCKET_ERROR) return StatusCode::SHUTDOWN;
+	if (result != 1)
+	{
+		std::cout << "Sent " << result << " bytes" << std::endl;
+	}
 
 	//then send the rest of the message
 	result = sendTcpData(clientSock, data, length);
 	if (result == 0) return StatusCode::DISCONNECT;
 	if (result == SOCKET_ERROR) return StatusCode::SHUTDOWN;
+	if (result > length)
+	{
+		std::cout << "Sent " << result << " bytes" << std::endl;
+	}
 	return StatusCode::SUCCESS;
 }
 
 StatusCode Server::relayMessage(SOCKET srcSocket, char* msg, int32_t length)
 {
+	throw "YOU SHOULD NOT USE ME ANYMORE";
 	if (length < 0 || length > 255) return StatusCode::PARAMETER_ERROR;
 	//get all sockets who are ready to be written to
 	fd_set tempSockets = this->clientSockets;
@@ -86,9 +102,24 @@ StatusCode Server::relayMessage(SOCKET srcSocket, char* msg, int32_t length)
 	return StatusCode::SUCCESS;
 }
 
+StatusCode Server::relayMessage(Client sender, ClientList toReceive, std::string msg)
+{
+	//get a list of all the clients who are ready to recieve the message (theoretically should be all of them)
+	fd_set recipientSockets = toReceive.getReadyWriteSockets();
+	FD_CLR(sender.getSocket(), &recipientSockets); //remove the initial sender
+	for (int i = 0; i < recipientSockets.fd_count; i++)
+	{
+		SOCKET s = recipientSockets.fd_array[i];
+		StatusCode result = this->sendMessage(s, msg.data(), msg.size());
+		if (result != StatusCode::SUCCESS) return result;
+	}
+	return StatusCode::SUCCESS;
+}
+
 //TODO: add error handling, extract parts of this function to other functions
 StatusCode Server::run()
 {
+
 	timeval selectPauseTime;
 	selectPauseTime.tv_sec = 1;
 
@@ -144,13 +175,127 @@ StatusCode Server::run()
 
 				//relay the message to all other active clients
 				this->relayMessage(sock, receivedData, strlen(receivedData));
+
+				delete receivedData;
 			}
 		}
 	}
 	return StatusCode::SUCCESS;
 }
 
+StatusCode Server::runOnce()
+{
+	
 
+	//Get new connections
+	StatusCode result = this->getNewConnections();
+	if (result != StatusCode::SUCCESS) return result;
+
+	//Check for messages from registered users
+	//result = this->listenToRegisteredClients();
+	//if (result != StatusCode::SUCCESS) return result;
+
+	//Check for messages from UNregistered users
+	result = this->listenToUnregisteredClients();
+	if (result != StatusCode::SUCCESS) return result;
+
+	return StatusCode::SUCCESS;
+}
+
+//TODO: limit the number of connections
+StatusCode Server::getNewConnections()
+{
+	timeval selectPauseTime;
+	selectPauseTime.tv_sec = 1;
+
+
+	fd_set tempListenSet = this->serverSocketContainer;
+	int numReadySockets = select(NULL, &tempListenSet, NULL, NULL, &selectPauseTime);
+	if (numReadySockets <= 0) return StatusCode::SUCCESS; //there are no sockets awaiting connection
+	if (numReadySockets > 1)
+	{
+		std::cout << "too many ready sockets: " << numReadySockets << std::endl; //theoretically, this code should never run
+		return StatusCode::FAILURE;
+	}
+	SOCKET newClient = accept(this->listenSocket, NULL, NULL); //accept the new connection!
+	if (newClient == INVALID_SOCKET)
+	{
+		int error = WSAGetLastError();
+		std::cout << "Accept failed with WSA Error Code: " << error << std::endl;
+		return StatusCode::FAILURE;
+	}
+
+	//add the new client to our client list
+	std::cout << "New Client Connected!" << std::endl;
+	ClientHandler::addClient(newClient);
+
+	//send the client a welcome message!
+	StatusCode result = this->sendMessage(newClient, this->welcomeMessage.data(), this->welcomeMessage.length());
+	if (result != StatusCode::SUCCESS) return result;
+
+	return StatusCode::SUCCESS;
+}
+
+StatusCode Server::readFrom(ClientList clients)
+{
+	//get a list of all the unregistered clients who have sent something to the server
+	fd_set sockets = clients.getReadyReadSockets();
+	if (sockets.fd_count == 0) return StatusCode::SUCCESS;
+
+	for (int i = 0; i < sockets.fd_count; i++)
+	{
+		//for each ready socket, attempt to read from it
+		SOCKET s = sockets.fd_array[i];
+		Client currentClient = clients.getClient(s);
+		if (currentClient == Client::InvalidClient)
+		{
+			std::cout << "Client does not exist" << std::endl;
+			continue;
+		}
+		char* receivedData = new char[256];
+		StatusCode result = this->readMessage(s, receivedData);
+		if (result == StatusCode::DISCONNECT) //check if socket disconnected
+		{
+			std::cout << currentClient.getUsername() << " has disconnected" << std::endl;
+			ClientHandler::removeClient(currentClient);
+			continue;
+		}
+		else if (result != StatusCode::SUCCESS) //check for any other errors
+		{
+			//client was forcibly disconnected (I dont think pressing stop on the client is supposed to work like this?)
+			int error = WSAGetLastError();
+			if (error == WSAECONNRESET)
+			{
+				std::cout << "A user has been forcefully disconnected (WSAECONNRESET)" << std::endl;
+				ClientHandler::removeClient(currentClient);
+				continue;
+			}
+
+			std::cout << "Last WSA error code: " << error << std::endl;
+			std::cout << "Status Code: " << (int)result << std::endl;
+
+			return StatusCode::FAILURE;
+		}
+		
+		if (!currentClient.isRegistered() && false) //TODO: remove the && false 
+		{
+			std::cout << "[UNREGISTERED USER] ";
+		}
+
+		std::string formattedMessage = "<" + currentClient.getUsername() + ">: " + receivedData;
+		std::cout << formattedMessage << std::endl;
+		std::cout << formattedMessage.size() << std::endl;
+		std::cout << formattedMessage.data() << std::endl;
+		this->relayMessage(currentClient, ClientHandler::getAllClients(), formattedMessage);
+
+	}
+	return StatusCode::SUCCESS;
+}
+
+StatusCode Server::listenToUnregisteredClients()
+{
+	return this->readFrom(ClientHandler::getUnRegisteredClients());
+}
 
 void Server::stop()
 {
@@ -158,15 +303,9 @@ void Server::stop()
 
 	shutdown(this->listenSocket, SD_BOTH);
 	closesocket(this->listenSocket);
-	FD_CLR(this->listenSocket, &this->clientSockets);
 
-	//TODO: make sure to close ALL client sockets (once implemented)
-	for (int i = 0; i < this->clientSockets.fd_count; i++)
-	{
-		SOCKET sock = this->clientSockets.fd_array[i];
-		shutdown(sock, SD_BOTH);
-		closesocket(sock);
-	}
+	ClientHandler::shutdownAllClients();
+
 	WSACleanup();
 	std::cout << "Stopped server" << std::endl;
 }
@@ -188,3 +327,4 @@ void Server::removeClient(SOCKET clientSocket)
 	shutdown(clientSocket, SD_BOTH);
 	closesocket(clientSocket);
 }
+

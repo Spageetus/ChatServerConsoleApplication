@@ -5,26 +5,7 @@
 #include <iostream>
 
 
-///use for testing
 int main()
-{
-    ClientList testList1;
-    SOCKET s1 = 23;
-    Client c1(s1);
-
-    SOCKET s2 = 54;
-    Client c2(s2);
-
-    testList1.add(c1);
-
-    c1.shutdownClient();
-
-    if (testList1.inList(c2)) throw "FUCK";
-    std::cout << "Seems to have worked" << std::endl;
-}
-
-
-int main2()
 {
     const int SERVER_LISTEN_PORT = 31337;
     const int MAX_CONNECTIONS = 1;
@@ -44,8 +25,17 @@ int main2()
     std::cout << "Server Initialized on port " << SERVER_LISTEN_PORT << " with up to " << MAX_CONNECTIONS << " connections!" << std::endl;
 
     server.getHostName();
-    
-    server.run();
+
+    while (ClientHandler::numClients() < 3) //temporary code to auto shutdown server when the number of clients is over 2
+    {
+        result = server.runOnce();
+        if (result != StatusCode::SUCCESS)
+        {
+            std::cout << "server run returned code: " << (int)result << std::endl;
+            break;
+        }
+    }
+
     server.stop();
 }
 

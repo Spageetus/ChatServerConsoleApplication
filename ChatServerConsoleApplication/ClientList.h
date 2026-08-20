@@ -22,14 +22,16 @@ public:
 	int add(Client newClient);
 	void remove(Client clientToRemove);
 	bool inList(Client clientToFind);
-	int length() { return clientVector.size(); }
+	int size() { return clientVector.size(); }
 	void clear();
 
 	Client getClient(SOCKET clientSocket);
 	Client getClient(std::string clientUsername);
 
+	fd_set getReadyReadSockets();
+	fd_set getReadyWriteSockets();
 
-	//TODO: find a way to be able to retrieve an fd_set containing ready sockets
+	void shutdownAll();
 
 
 };

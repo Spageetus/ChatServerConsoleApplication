@@ -3,15 +3,27 @@
 #include "definitions.h"
 #include "ClientList.h"
 
-class ClientHandler
+static class ClientHandler
 {
 private:
-	static std::vector<Client> allClients;
-	static std::vector<Client> unregisteredClients;
-	static std::vector<Client> registeredClients;
-
+	inline static ClientList allClients;
+	inline static ClientList unregisteredClients;
+	inline static ClientList registeredClients;
+	
 public:
 	
-};
 
-// need to make sure I can retrieve an fd_set from each list 
+
+	static ClientList getAllClients();
+	static ClientList getRegisteredClients();
+	static ClientList getUnRegisteredClients();
+
+	static void removeClient(Client clientToRemove);
+
+	static void addClient(Client clientToAdd);
+	static void addClient(SOCKET clientSocket);
+
+	static void shutdownAllClients();
+
+	static int numClients() { return ClientHandler::getAllClients().size(); }
+};

@@ -18,19 +18,19 @@ int ClientList::add(Client newClient)
 	return 0;
 }
 
-//wait shit I shouldnt shut down the client 
-void ClientList::remove(Client clientToRemove) 
+void ClientList::remove(Client clientToRemove)
 {
-	if (!this->inList(clientToRemove)) return;
-	for (int i = 0; i < this->clientVector.size(); i++)
+	SOCKET s = clientToRemove.getSocket();
+	for (size_t i = 0; i < this->clientVector.size(); ++i)
 	{
 		if (this->clientVector[i] == clientToRemove)
 		{
+			// remove socket from the fd_set
+			FD_CLR(s, &this->masterList);
 			this->clientVector.erase(this->clientVector.begin() + i);
 			break;
 		}
 	}
-	//clientToRemove.shutdownClient();
 }
 
 bool ClientList::inList(Client clientToFind) 
@@ -40,10 +40,22 @@ bool ClientList::inList(Client clientToFind)
 
 void ClientList::clear()
 {
-	for (int i = 0; i < this->clientVector.size(); i++)
+	while (!this->clientVector.empty())
 	{
-		this->remove(this->clientVector[0]);
+		Client c = this->clientVector.front();
+		FD_CLR(c.getSocket(), &this->masterList);
+		this->clientVector.erase(this->clientVector.begin());
 	}
+}
+
+void ClientList::shutdownAll()
+{
+	for (int i = 0; i < this->size(); i++)
+	{
+		Client c = this->clientVector[i];
+		c.shutdownClient();
+	}
+	this->clear();
 }
 
 Client ClientList::getClient(SOCKET clientSocket)
@@ -52,6 +64,7 @@ Client ClientList::getClient(SOCKET clientSocket)
 	{
 		if (this->clientVector[i].getSocket() == clientSocket) return this->clientVector[i];
 	}
+	return Client::InvalidClient;
 }
 
 Client ClientList::getClient(std::string clientUsername)
@@ -60,5 +73,24 @@ Client ClientList::getClient(std::string clientUsername)
 	{
 		if (this->clientVector[i].getUsername() == clientUsername) return this->clientVector[i];
 	}
+	return Client::InvalidClient;
 }
 
+fd_set ClientList::getReadyReadSockets()
+{
+	timeval selectPauseTime;
+	selectPauseTime.tv_sec = 1;
+
+	fd_set temp = this->masterList;
+	select(NULL, &temp, NULL, NULL, &selectPauseTime);
+	return temp;
+}
+
+fd_set ClientList::getReadyWriteSockets()
+{
+	timeval selectPauseTime;
+	selectPauseTime.tv_sec = 1;
+	fd_set temp = this->masterList;
+	select(NULL, NULL, &temp, NULL, &selectPauseTime);
+	return temp;
+}
