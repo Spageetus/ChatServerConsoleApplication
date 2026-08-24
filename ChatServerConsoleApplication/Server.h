@@ -8,6 +8,7 @@
 #include "definitions.h"
 #include "platform.h"
 #include "ClientHandler.h"
+#include "MessageParser.h"
 
 class Server
 {
@@ -28,6 +29,11 @@ private:
 	std::string hostname;
 
 	char* readBuffer;
+	char* writeBuffer;
+
+	timeval serverWaitTime;
+
+	int maxClients; 
 
 
 public:
@@ -45,7 +51,6 @@ public:
 	
 	StatusCode readMessage(SOCKET clientSock, char* inputBuffer);
 	StatusCode sendMessage(SOCKET clientSock, char* msg, int32_t length);
-	StatusCode relayMessage(SOCKET sourceSocket, char* msg, int32_t length);
 	StatusCode relayMessage(Client sender, ClientList toReceive, char* msg);
 
 

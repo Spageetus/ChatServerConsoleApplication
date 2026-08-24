@@ -4,11 +4,46 @@
 
 #include <iostream>
 
-
 int main()
 {
-    const int SERVER_LISTEN_PORT = 31337;
-    const int MAX_CONNECTIONS = 1;
+    int SERVER_LISTEN_PORT = 31337;
+    int MAX_CONNECTIONS = 4;
+    char COMMAND_CHARACTER = '/';
+
+    //server console prompt for the listening port, max connections, and command character
+    
+    //std::cout << "Enter the port number you would like the server to listen to: ";
+    //while (!(std::cin >> SERVER_LISTEN_PORT) || (SERVER_LISTEN_PORT < 0 || SERVER_LISTEN_PORT > 65535))
+    //{
+    //    std::cout << "Invalid port value. Values cannot be negative or exceed 65535" << std::endl;
+    //    std::cout << "Enter the port number you would like the server to listen to: ";
+
+    //    std::cin.clear();
+    //    std::cin.ignore(INT_MAX, '\n');
+    //}
+
+
+    //std::cout << "Enter the max server capacity: ";
+    //while (!(std::cin >> MAX_CONNECTIONS) || (MAX_CONNECTIONS < 0 || MAX_CONNECTIONS > 128)) //setting the max value to 128 for now
+    //{
+    //    std::cout << "Invalid input. Value must be a positive integer." << std::endl;
+    //    std::cout << "Enter the max server capacity: ";
+
+    //    std::cin.clear();
+    //    std::cin.ignore(INT_MAX, '\n');
+    //}
+    //
+    //do
+    //{
+    //    std::cout << "Enter the server's command character: ";
+    //    std::cin >> COMMAND_CHARACTER;
+    //} while (false); //TODO: change the condition to actually verify the value is valid
+
+    std::cout << "Server Listening Port: " << SERVER_LISTEN_PORT << std::endl;
+    std::cout << "Max Connections: " << MAX_CONNECTIONS << std::endl;
+    std::cout << "Command Character: " << COMMAND_CHARACTER << std::endl;
+
+    if (true) return 0;
 
     char* readBuffer = new char[256];
 
@@ -44,11 +79,6 @@ int main()
     ###### TODOS #####
 
     Make max connections actually function
-    format relayed messages like so:
-        <username>: message
-                or
-        [SERVER]: message
-
     Figure out how to allow the server to be shutdown gracefully instead of just closing the program 
            - Use SIGINT from <csignal> to catch CTRL+C
 

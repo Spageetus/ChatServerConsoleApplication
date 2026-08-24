@@ -25,14 +25,16 @@ StatusCode Server::init(uint16_t port, uint16_t maxConnections)
 	FD_ZERO(&this->serverSocketContainer); //clear it just in case
 	FD_SET(this->listenSocket, &this->serverSocketContainer);
 
-	//FD_ZERO(&clientSockets);
-	//FD_SET(this->listenSocket, &clientSockets);
-
 	result = listen(this->listenSocket, maxConnections);
 	if (result == SOCKET_ERROR) return StatusCode::SETUP_ERROR;
 
 	this->welcomeMessage = "[Server]: Welcome to the server!";
 	this->readBuffer = new char[256];
+	this->writeBuffer = new char[256];
+
+	//set the server waiting time to 1 second
+	this->serverWaitTime.tv_sec = 1;
+
 	//marking server as active
 	this->active = true;
 	return StatusCode::SUCCESS;
@@ -88,27 +90,6 @@ StatusCode Server::sendMessage(SOCKET clientSock, char* data, int32_t length)
 	return StatusCode::SUCCESS;
 }
 
-StatusCode Server::relayMessage(SOCKET srcSocket, char* msg, int32_t length)
-{
-	throw "YOU SHOULD NOT USE ME ANYMORE";
-	if (length < 0 || length > 255) return StatusCode::PARAMETER_ERROR;
-	//get all sockets who are ready to be written to
-	fd_set tempSockets = this->clientSockets;
-	select(NULL, NULL, &tempSockets, NULL, NULL); //make a list of all sockets who are ready to be written to
-	FD_CLR(srcSocket, &tempSockets); //remove the initial sender from the list of ready sockets
-	for (int i = 0; i < tempSockets.fd_count; i++)
-	{
-		SOCKET s = tempSockets.fd_array[i];
-		StatusCode result = this->sendMessage(s, msg, length);
-		if (result != StatusCode::SUCCESS)
-		{
-			std::cout << "Message Relay failed with code: " << (int)result << std::endl;
-			return result;
-		}
-	}
-	return StatusCode::SUCCESS;
-}
-
 StatusCode Server::relayMessage(Client sender, ClientList toReceive, char* msg)
 {
 	//get a list of all the clients who are ready to recieve the message (theoretically should be all of them)
@@ -123,81 +104,27 @@ StatusCode Server::relayMessage(Client sender, ClientList toReceive, char* msg)
 	return StatusCode::SUCCESS;
 }
 
-//TODO: add error handling, extract parts of this function to other functions
 StatusCode Server::run()
 {
-
-	timeval selectPauseTime;
-	selectPauseTime.tv_sec = 1;
-
-
-	while (this->isActive())
+	StatusCode status = StatusCode::FAILURE; //just setting it to whatever for now
+	do
 	{
-		//first check for sockets who are ready to read
-		fd_set temp_sockets = this->clientSockets; //copying list of sockets so select doesnt modify the master list
-		int numReadySockets = select(NULL, &temp_sockets, NULL, NULL, &selectPauseTime);
-		if (numReadySockets <= 0) continue;
-		//loop through ready sockets
-		for (int i = 0; i < temp_sockets.fd_count; i++)
-		{
-			SOCKET sock = temp_sockets.fd_array[i];
-			if (sock == this->listenSocket)
-			{
-				SOCKET newClient = accept(this->listenSocket, NULL, NULL);
-				FD_SET(newClient, &this->clientSockets);
-				std::cout << "New Client Connected!" << std::endl;
-				//send a welcome message to the client
-				this->sendMessage(newClient, this->welcomeMessage.data(), this->welcomeMessage.length());
-			}
-			else
-			{
-				char* receivedData = new char[256];
-				StatusCode result = this->readMessage(sock, receivedData);
-				if (result == StatusCode::DISCONNECT)
-				{
-					std::cout << "A user has disconnected" << std::endl;
-					this->removeClient(sock);
-					continue;
-				}
-				else if (result != StatusCode::SUCCESS)
-				{
-					//client was forcibly disconnected (I dont think pressing stop on the client is supposed to work like this?)
-					int error = WSAGetLastError();
-					if (error == WSAECONNRESET)
-					{
-						std::cout << "A user has been forcefully disconnected (WSAECONNRESET)" << std::endl;
-						this->removeClient(sock);
-						continue;
-					}
-					
-					std::cout << "Last WSA error code: " << error << std::endl;
-					std::cout << "Status Code: " << (int)result << std::endl;
-					
-					return StatusCode::FAILURE;
-				}
-				//display the recieved message on the server console
-				std::cout << "[Recieved]: " << receivedData << std::endl;
+		status = this->runOnce();
+	} while (status != StatusCode::SUCCESS);
 
-				//TODO: parse the message
-
-				//relay the message to all other active clients
-				this->relayMessage(sock, receivedData, strlen(receivedData));
-
-				delete[] receivedData;
-			}
-		}
-	}
-	return StatusCode::SUCCESS;
+	return status;
 }
 
 StatusCode Server::runOnce()
 {
+	StatusCode result;
+	if (ClientHandler::numClients() < this->maxClients)
+	{
+		//Get new connections
+		result = this->getNewConnections();
+		if (result != StatusCode::SUCCESS) return result;
+	}
 	
-
-	//Get new connections
-	StatusCode result = this->getNewConnections();
-	if (result != StatusCode::SUCCESS) return result;
-
 	//Check for messages from registered users
 	//result = this->listenToRegisteredClients();
 	//if (result != StatusCode::SUCCESS) return result;
@@ -294,10 +221,15 @@ StatusCode Server::readFrom(ClientList clients)
 			return StatusCode::SHUTDOWN;
 		}
 
-		//TODO: replace the message formatting with a message parse to handle commands and shit
-		std::string formattedMessage = "<" + currentClient.getUsername() + ">: " + this->readBuffer + "\0";		this->relayMessage(currentClient, ClientHandler::getAllClients(), formattedMessage.data());
-		std::cout << formattedMessage << std::endl;
+		//parse the message
+		fuckifiknow todo = MessageParser::parseMessage(currentClient, std::string(this->readBuffer));
 		
+		std::cout << todo.message;
+
+		if (todo.destinationClient == Client::AllClients)
+		{
+			this->relayMessage(todo.sourceClient, ClientHandler::getAllClients(), todo.message.data());
+		}
 	}
 	return StatusCode::SUCCESS;
 }
@@ -309,8 +241,6 @@ StatusCode Server::listenToUnregisteredClients()
 
 void Server::stop()
 {
-	this->active = false;
-
 	shutdown(this->listenSocket, SD_BOTH);
 	closesocket(this->listenSocket);
 
@@ -318,7 +248,9 @@ void Server::stop()
 
 	WSACleanup();
 	std::cout << "Stopped server" << std::endl;
+	this->active = false;
 	delete[] this->readBuffer;
+	delete[] this->writeBuffer;
 }
 
 
@@ -338,5 +270,3 @@ void Server::removeClient(SOCKET clientSocket)
 	shutdown(clientSocket, SD_BOTH);
 	closesocket(clientSocket);
 }
-
-//TODO: try giving the server a separate buffer for writing data (maybe that will fix the issue?)
