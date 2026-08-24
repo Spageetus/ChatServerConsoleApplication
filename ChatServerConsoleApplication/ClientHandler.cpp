@@ -16,10 +16,10 @@ ClientList ClientHandler::getUnRegisteredClients()
 	return ClientHandler::unregisteredClients;
 }
 
-void ClientHandler::addClient(Client clientToAdd)
+void ClientHandler::addClient(Client* clientToAdd)
 {
 	ClientHandler::allClients.add(clientToAdd);
-	if (clientToAdd.isRegistered())
+	if (clientToAdd->isRegistered())
 	{
 		ClientHandler::registeredClients.add(clientToAdd);
 	}
@@ -29,17 +29,17 @@ void ClientHandler::addClient(Client clientToAdd)
 	}
 }
 
-void ClientHandler::removeClient(Client clientToRemove)
+void ClientHandler::removeClient(Client* clientToRemove)
 {
 	ClientHandler::allClients.remove(clientToRemove);
 	ClientHandler::registeredClients.remove(clientToRemove);
 	ClientHandler::unregisteredClients.remove(clientToRemove);
-	clientToRemove.shutdownClient();
+	clientToRemove->shutdownClient();
 }
 
 void ClientHandler::addClient(SOCKET clientSocket)
 {
-	ClientHandler::addClient(Client(clientSocket));
+	ClientHandler::addClient(new Client(clientSocket));
 }
 
 ///Theres a chance this gives me an error BUT IT HASNT SO FAR

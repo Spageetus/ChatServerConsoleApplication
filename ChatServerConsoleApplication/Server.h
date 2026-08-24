@@ -8,7 +8,6 @@
 #include "definitions.h"
 #include "platform.h"
 #include "ClientHandler.h"
-#include "MessageParser.h"
 
 class Server
 {
@@ -51,7 +50,7 @@ public:
 	
 	StatusCode readMessage(SOCKET clientSock, char* inputBuffer);
 	StatusCode sendMessage(SOCKET clientSock, char* msg, int32_t length);
-	StatusCode relayMessage(Client sender, ClientList toReceive, char* msg);
+	StatusCode relayMessage(Client* sender, ClientList toReceive, char* msg);
 
 
 	StatusCode runOnce();

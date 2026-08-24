@@ -37,6 +37,7 @@ StatusCode Server::init(uint16_t port, uint16_t maxConnections)
 
 	//marking server as active
 	this->active = true;
+	this->maxClients = maxConnections;
 	return StatusCode::SUCCESS;
 }
 
@@ -90,11 +91,11 @@ StatusCode Server::sendMessage(SOCKET clientSock, char* data, int32_t length)
 	return StatusCode::SUCCESS;
 }
 
-StatusCode Server::relayMessage(Client sender, ClientList toReceive, char* msg)
+StatusCode Server::relayMessage(Client* sender, ClientList toReceive, char* msg)
 {
 	//get a list of all the clients who are ready to recieve the message (theoretically should be all of them)
 	fd_set recipientSockets = toReceive.getReadyWriteSockets();
-	FD_CLR(sender.getSocket(), &recipientSockets); //remove the initial sender
+	FD_CLR(sender->getSocket(), &recipientSockets); //remove the initial sender
 	for (int i = 0; i < recipientSockets.fd_count; i++)
 	{
 		SOCKET s = recipientSockets.fd_array[i];
@@ -180,7 +181,7 @@ StatusCode Server::readFrom(ClientList clients)
 	{
 		//for each ready socket, attempt to read from it
 		SOCKET s = sockets.fd_array[i];
-		Client currentClient = clients.getClient(s);
+		Client* currentClient = clients.getClient(s);
 		if (currentClient == Client::InvalidClient)
 		{
 			std::cout << "Client does not exist" << std::endl;
@@ -189,7 +190,7 @@ StatusCode Server::readFrom(ClientList clients)
 		StatusCode result = this->readMessage(s, this->readBuffer);
 		if (result == StatusCode::DISCONNECT) //check if socket disconnected
 		{
-			std::cout << currentClient.getUsername() << " has disconnected" << std::endl;
+			std::cout << currentClient->getUsername() << " has disconnected" << std::endl;
 			ClientHandler::removeClient(currentClient);
 			continue;
 		}
@@ -210,7 +211,7 @@ StatusCode Server::readFrom(ClientList clients)
 			return StatusCode::FAILURE;
 		}
 		
-		if (!currentClient.isRegistered() && false) //TODO: remove the && false 
+		if (!currentClient->isRegistered() && false) //TODO: remove the && false 
 		{
 			std::cout << "[UNREGISTERED USER] ";
 		}
@@ -221,15 +222,10 @@ StatusCode Server::readFrom(ClientList clients)
 			return StatusCode::SHUTDOWN;
 		}
 
-		//parse the message
-		fuckifiknow todo = MessageParser::parseMessage(currentClient, std::string(this->readBuffer));
-		
-		std::cout << todo.message;
+		std::cout << this->readBuffer << std::endl;
 
-		if (todo.destinationClient == Client::AllClients)
-		{
-			this->relayMessage(todo.sourceClient, ClientHandler::getAllClients(), todo.message.data());
-		}
+		//parse the message
+		this->relayMessage(currentClient, ClientHandler::getAllClients(), this->readBuffer);
 	}
 	return StatusCode::SUCCESS;
 }

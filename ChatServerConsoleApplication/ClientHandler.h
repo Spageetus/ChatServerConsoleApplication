@@ -3,7 +3,7 @@
 #include "definitions.h"
 #include "ClientList.h"
 
-static class ClientHandler
+class ClientHandler
 {
 private:
 	inline static ClientList allClients;
@@ -18,9 +18,9 @@ public:
 	static ClientList getRegisteredClients();
 	static ClientList getUnRegisteredClients();
 
-	static void removeClient(Client clientToRemove);
+	static void removeClient(Client* clientToRemove);
 
-	static void addClient(Client clientToAdd);
+	static void addClient(Client* clientToAdd);
 	static void addClient(SOCKET clientSocket);
 
 	static void shutdownAllClients();

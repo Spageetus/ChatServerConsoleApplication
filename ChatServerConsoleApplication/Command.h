@@ -9,7 +9,7 @@ namespace Commands
 		std::string commandString;
 
 	public:
-		Command();
+		//Command();
 	};
 
 

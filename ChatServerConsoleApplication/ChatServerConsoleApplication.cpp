@@ -43,7 +43,7 @@ int main()
     std::cout << "Max Connections: " << MAX_CONNECTIONS << std::endl;
     std::cout << "Command Character: " << COMMAND_CHARACTER << std::endl;
 
-    if (true) return 0;
+    //if (true) return 0;
 
     char* readBuffer = new char[256];
 

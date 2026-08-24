@@ -1,32 +1,24 @@
 #pragma once
-#include <vector>
 #include <string>
 #include <winsock2.h>
 #include "Client.h"
+#include <unordered_map>
 class ClientList
 {
 private:
-	fd_set masterList;
-	std::vector<Client> clientVector;
+	std::unordered_map<std::string, Client*> usernameMap;
+	std::unordered_map<SOCKET, Client*> socketMap;
 
 public:
-	ClientList();
+	//ClientList();
 
-	/// <summary>
-	/// Attempts to add a new client to the list
-	/// </summary>
-	/// <param name="newClient"></param>
-	/// <returns> 
-	///		success: 0 | fail: -1
-	/// </returns>
-	int add(Client newClient);
-	void remove(Client clientToRemove);
-	bool inList(Client clientToFind);
-	int size() { return clientVector.size(); }
-	void clear();
+	int add(Client* newClient);
+	void remove(Client* clientToRemove);
+	bool inList(Client* clientToFind);
+	size_t size();
 
-	Client getClient(SOCKET clientSocket);
-	Client getClient(std::string clientUsername);
+	Client* getClient(SOCKET clientSocket);
+	Client* getClient(std::string clientUsername);
 
 	fd_set getReadyReadSockets();
 	fd_set getReadyWriteSockets();
