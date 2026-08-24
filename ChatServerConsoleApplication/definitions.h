@@ -1,5 +1,5 @@
 #pragma once
-
+#include "Client.h"
 #include <string>
 
 enum class StatusCode
@@ -16,4 +16,12 @@ enum class StatusCode
 	PARAMETER_ERROR = 8,
 	MESSAGE_ERROR = 9,
 	NOT_IMPLEMENTED = 10
+};
+
+struct server_response //used by message parser and command handler to tell the server what to do with a message
+{
+	StatusCode status;
+	Client* srcClient;
+	Client* dstClient;
+	std::string message;
 };

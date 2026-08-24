@@ -222,10 +222,14 @@ StatusCode Server::readFrom(ClientList clients)
 			return StatusCode::SHUTDOWN;
 		}
 
-		std::cout << this->readBuffer << std::endl;
+		server_response resp = MessageParser::parseMessage(currentClient, std::string(this->readBuffer));
+	
+		std::cout << resp.message << std::endl;
 
-		//parse the message
-		this->relayMessage(currentClient, ClientHandler::getAllClients(), this->readBuffer);
+		if (resp.status == StatusCode::SUCCESS && resp.dstClient == nullptr)
+		{
+			this->relayMessage(currentClient, ClientHandler::getAllClients(), resp.message.data());
+		}
 	}
 	return StatusCode::SUCCESS;
 }

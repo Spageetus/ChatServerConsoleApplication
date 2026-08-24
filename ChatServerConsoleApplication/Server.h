@@ -8,6 +8,7 @@
 #include "definitions.h"
 #include "platform.h"
 #include "ClientHandler.h"
+#include "MessageParser.h"
 
 class Server
 {

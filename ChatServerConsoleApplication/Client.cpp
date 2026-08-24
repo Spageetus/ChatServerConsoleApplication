@@ -11,7 +11,7 @@ const Client* Client::AllClients = new Client(Client::invalidSocket, "<allClient
 Client::Client(SOCKET sock)
 {
 	this->userSocket = sock;
-	this->username = "Client" + std::to_string(Client::nextClientId);
+	this->username = "Client" + std::to_string((int)sock);
 	Client::nextClientId++;
 }
 

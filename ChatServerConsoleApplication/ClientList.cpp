@@ -27,6 +27,7 @@ void ClientList::shutdownAll()
 	{
 		it->second->shutdownClient();
 		this->remove(it->second);
+		it = this->socketMap.begin(); //fuck it we ball
 	}
 }
 
