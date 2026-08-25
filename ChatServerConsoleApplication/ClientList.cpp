@@ -23,7 +23,7 @@ bool ClientList::inList(Client* clientToFind)
 
 void ClientList::shutdownAll()
 {
-	for (auto it = this->socketMap.begin(); it != this->socketMap.end(); ++it)
+	for (auto it = this->socketMap.begin(); it != this->socketMap.end();)
 	{
 		it->second->shutdownClient();
 		this->remove(it->second);
