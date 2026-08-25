@@ -5,7 +5,6 @@ ClientList ClientHandler::getAllClients()
 	return ClientHandler::allClients;
 }
 
-
 ClientList ClientHandler::getRegisteredClients()
 {
 	return ClientHandler::registeredClients;

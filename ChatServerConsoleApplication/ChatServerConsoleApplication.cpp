@@ -1,6 +1,8 @@
 //#include "definitions.h"
 #include "Server.h"
 #include "ClientHandler.h"
+#include "Credentials.h"
+#include "Command.h"
 
 #include <iostream>
 
@@ -45,8 +47,22 @@ int main()
 
     //if (true) return 0;
 
-    char* readBuffer = new char[256];
+    Credentials::init();
+    std::string username, password;
 
+    std::cout << "Username: ";
+    std::cin >> username;
+    std::cout << "Password: ";
+    std::cin >> password;
+
+    server_response resp = Commands::login.run({username, password});
+
+    std::cout << resp.message << std::endl;
+
+    if (true) return 0;
+
+    char* readBuffer = new char[256];
+    MessageParser::commandCharacter = COMMAND_CHARACTER;
     //setup the server
     Server server;
     StatusCode result = server.init(SERVER_LISTEN_PORT, MAX_CONNECTIONS);

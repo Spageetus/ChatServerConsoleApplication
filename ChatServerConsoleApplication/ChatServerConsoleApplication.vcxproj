@@ -144,6 +144,7 @@
     <ClCompile Include="ClientHandler.cpp" />
     <ClCompile Include="ClientList.cpp" />
     <ClCompile Include="Command.cpp" />
+    <ClCompile Include="Credentials.cpp" />
     <ClCompile Include="MessageParser.cpp" />
     <ClCompile Include="platform.cpp" />
     <ClCompile Include="Server.cpp" />
@@ -153,12 +154,14 @@
     <ClInclude Include="ClientHandler.h" />
     <ClInclude Include="ClientList.h" />
     <ClInclude Include="Command.h" />
+    <ClInclude Include="Credentials.h" />
     <ClInclude Include="definitions.h" />
     <ClInclude Include="MessageParser.h" />
     <ClInclude Include="platform.h" />
     <ClInclude Include="Server.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="logins.data" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
