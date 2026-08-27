@@ -25,6 +25,9 @@ public:
 	bool isActive() { return this->userSocket != SOCKET_ERROR; } //I think this should work?
 	bool isRegistered() { return this->registered; };
 
+	void registerClient(std::string username);
+	void logout();
+
 	SOCKET getSocket();
 	std::string getUsername();
 

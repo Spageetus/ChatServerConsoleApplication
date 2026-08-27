@@ -20,5 +20,8 @@ public:
 	static bool addNew(std::string username, std::string password);
 	static bool verifyLogin(std::string username, std::string password);
 	static bool usernameTaken(std::string username);
+
+	static bool validUsername(std::string username);
+	static bool validPassword(std::string password);
 };
 

@@ -1,16 +1,16 @@
 #include "ClientHandler.h"
 
-ClientList ClientHandler::getAllClients()
+ClientList& ClientHandler::getAllClients()
 {
 	return ClientHandler::allClients;
 }
 
-ClientList ClientHandler::getRegisteredClients()
+ClientList& ClientHandler::getRegisteredClients()
 {
 	return ClientHandler::registeredClients;
 }
 
-ClientList ClientHandler::getUnRegisteredClients()
+ClientList& ClientHandler::getUnRegisteredClients()
 {
 	return ClientHandler::unregisteredClients;
 }
@@ -47,4 +47,27 @@ void ClientHandler::shutdownAllClients()
 	ClientHandler::allClients.shutdownAll();
 	ClientHandler::registeredClients.shutdownAll();
 	ClientHandler::unregisteredClients.shutdownAll();
+
+	//delete all Clients
+	
+}
+
+void ClientHandler::registerClient(Client* client, std::string username)
+{
+	ClientHandler::getUnRegisteredClients().remove(client);
+	ClientHandler::getAllClients().remove(client);
+	client->registerClient(username);
+	ClientHandler::getAllClients().add(client);
+	ClientHandler::getRegisteredClients().add(client);
+	
+}
+
+void ClientHandler::unregisterClient(Client* client)
+{
+	if (!client->isRegistered()) return;
+	ClientHandler::getRegisteredClients().remove(client);
+	ClientHandler::getAllClients().remove(client);
+	client->logout();
+	ClientHandler::getAllClients().add(client);
+	ClientHandler::getUnRegisteredClients().add(client);
 }

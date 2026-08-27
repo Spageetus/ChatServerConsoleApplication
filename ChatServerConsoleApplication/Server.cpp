@@ -28,7 +28,7 @@ StatusCode Server::init(uint16_t port, uint16_t maxConnections)
 	result = listen(this->listenSocket, maxConnections);
 	if (result == SOCKET_ERROR) return StatusCode::SETUP_ERROR;
 
-	this->welcomeMessage = "[Server]: Welcome to the server!";
+	this->welcomeMessage = "[Server]: Welcome to the server! Use " + std::string(1, MessageParser::commandCharacter) + "help for a list of commands!";
 	this->readBuffer = new char[256];
 	this->writeBuffer = new char[256];
 
@@ -127,8 +127,8 @@ StatusCode Server::runOnce()
 	}
 	
 	//Check for messages from registered users
-	//result = this->listenToRegisteredClients();
-	//if (result != StatusCode::SUCCESS) return result;
+	result = this->listenToRegisteredClients();
+	if (result != StatusCode::SUCCESS) return result;
 
 	//Check for messages from UNregistered users
 	result = this->listenToUnregisteredClients();
@@ -210,25 +210,21 @@ StatusCode Server::readFrom(ClientList clients)
 
 			return StatusCode::FAILURE;
 		}
-		
-		if (!currentClient->isRegistered() && false) //TODO: remove the && false 
-		{
-			std::cout << "[UNREGISTERED USER] ";
-		}
-
-		//temp code to close the server
-		if (std::string(this->readBuffer) == "shutdown")
-		{
-			return StatusCode::SHUTDOWN;
-		}
 
 		server_response resp = MessageParser::parseMessage(currentClient, std::string(this->readBuffer));
 	
 		std::cout << resp.message << std::endl;
 
-		if (resp.status == StatusCode::SUCCESS && resp.dstClient == nullptr)
+		if (resp.status == StatusCode::SHUTDOWN) return StatusCode::SHUTDOWN;
+
+
+		if (currentClient->isRegistered() && resp.status == StatusCode::SUCCESS && resp.dstClient == nullptr)
 		{
-			this->relayMessage(currentClient, ClientHandler::getAllClients(), resp.message.data());
+			this->relayMessage(currentClient, ClientHandler::getRegisteredClients(), resp.message.data());
+		}
+		else if(resp.dstClient == currentClient)
+		{
+			this->sendMessage(currentClient->getSocket(), resp.message.data(), resp.message.size());
 		}
 	}
 	return StatusCode::SUCCESS;
@@ -237,6 +233,11 @@ StatusCode Server::readFrom(ClientList clients)
 StatusCode Server::listenToUnregisteredClients()
 {
 	return this->readFrom(ClientHandler::getUnRegisteredClients());
+}
+
+StatusCode Server::listenToRegisteredClients()
+{
+	return this->readFrom(ClientHandler::getRegisteredClients());
 }
 
 void Server::stop()

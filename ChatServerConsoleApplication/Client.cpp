@@ -36,3 +36,14 @@ SOCKET Client::getSocket()
 	return this->userSocket;
 }
 
+void Client::registerClient(std::string username)
+{
+	this->username = username;
+	this->registered = true;
+}
+
+void Client::logout()
+{
+	this->username = "Client" + std::to_string((int)this->userSocket);
+	this->registered = true;
+}

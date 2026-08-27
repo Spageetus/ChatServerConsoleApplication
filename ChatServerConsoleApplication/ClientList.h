@@ -20,10 +20,15 @@ public:
 	Client* getClient(SOCKET clientSocket);
 	Client* getClient(std::string clientUsername);
 
+	std::unordered_map<std::string, Client*>& getUsernameMap(){ return this->usernameMap; }
+	std::unordered_map<SOCKET, Client*>& getSocketMap() { return this->socketMap; }
+
 	fd_set getReadyReadSockets();
 	fd_set getReadyWriteSockets();
 
 	void shutdownAll();
+
+	void freeMemory();
 
 
 };

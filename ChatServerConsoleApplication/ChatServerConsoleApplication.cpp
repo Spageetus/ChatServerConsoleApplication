@@ -1,68 +1,71 @@
 //#include "definitions.h"
+#include <iostream>
 #include "Server.h"
 #include "ClientHandler.h"
 #include "Credentials.h"
 #include "Command.h"
 
-#include <iostream>
+//memory leak detection
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+
+//TODO: deal with memory leaks from creating new Clients (probably use shared pointers instead of normal pointers)
 
 int main()
 {
+    //memory leak detection
+    //_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
     int SERVER_LISTEN_PORT = 31337;
-    int MAX_CONNECTIONS = 4;
+    int MAX_CONNECTIONS = 2;
     char COMMAND_CHARACTER = '/';
 
-    //server console prompt for the listening port, max connections, and command character
+    //server console prompt for the listening port
     
-    //std::cout << "Enter the port number you would like the server to listen to: ";
-    //while (!(std::cin >> SERVER_LISTEN_PORT) || (SERVER_LISTEN_PORT < 0 || SERVER_LISTEN_PORT > 65535))
-    //{
-    //    std::cout << "Invalid port value. Values cannot be negative or exceed 65535" << std::endl;
-    //    std::cout << "Enter the port number you would like the server to listen to: ";
+    std::cout << "Enter the port number you would like the server to listen to: ";
+    while (!(std::cin >> SERVER_LISTEN_PORT) || (SERVER_LISTEN_PORT < 1 || SERVER_LISTEN_PORT > 65535))
+    {
+        std::cout << "Invalid port value. Values cannot be negative or exceed 65535" << std::endl;
+        std::cout << "Enter the port number you would like the server to listen to: ";
 
-    //    std::cin.clear();
-    //    std::cin.ignore(INT_MAX, '\n');
-    //}
+        std::cin.clear();
+        std::cin.ignore(INT_MAX, '\n');
+    }
 
+    //prompt for max server capacity
+    std::cout << "Enter the max server capacity: ";
+    while (!(std::cin >> MAX_CONNECTIONS) || (MAX_CONNECTIONS < 1 || MAX_CONNECTIONS > 128)) //setting the max value to 128 for now
+    {
+        std::cout << "Invalid input. Value must be a positive integer." << std::endl;
+        std::cout << "Enter the max server capacity: ";
 
-    //std::cout << "Enter the max server capacity: ";
-    //while (!(std::cin >> MAX_CONNECTIONS) || (MAX_CONNECTIONS < 0 || MAX_CONNECTIONS > 128)) //setting the max value to 128 for now
-    //{
-    //    std::cout << "Invalid input. Value must be a positive integer." << std::endl;
-    //    std::cout << "Enter the max server capacity: ";
+        std::cin.clear();
+        std::cin.ignore(INT_MAX, '\n');
+    }
+    
+    //prompt for command character
+    std::cout << "Enter the server's command character: ";
+    while (std::cin >> COMMAND_CHARACTER || true)
+    {
+        //verify command character based on ASCII values
+        if (COMMAND_CHARACTER >= '!' && COMMAND_CHARACTER < '0') break;
+        if (COMMAND_CHARACTER >= ':' && COMMAND_CHARACTER < 'A') break;
+        std::cout << "Invalid command character. Character cannot be alphanumeric or invisible" << std::endl;
+        std::cout << "Enter the server's command character: ";
 
-    //    std::cin.clear();
-    //    std::cin.ignore(INT_MAX, '\n');
-    //}
-    //
-    //do
-    //{
-    //    std::cout << "Enter the server's command character: ";
-    //    std::cin >> COMMAND_CHARACTER;
-    //} while (false); //TODO: change the condition to actually verify the value is valid
+        std::cin.clear();
+        std::cin.ignore(INT_MAX, '\n');
+    }
 
     std::cout << "Server Listening Port: " << SERVER_LISTEN_PORT << std::endl;
     std::cout << "Max Connections: " << MAX_CONNECTIONS << std::endl;
     std::cout << "Command Character: " << COMMAND_CHARACTER << std::endl;
 
-    //if (true) return 0;
-
     Credentials::init();
-    std::string username, password;
-
-    std::cout << "Username: ";
-    std::cin >> username;
-    std::cout << "Password: ";
-    std::cin >> password;
-
-    server_response resp = Commands::login.run({username, password});
-
-    std::cout << resp.message << std::endl;
-
-    if (true) return 0;
-
-    char* readBuffer = new char[256];
     MessageParser::commandCharacter = COMMAND_CHARACTER;
+
+
     //setup the server
     Server server;
     StatusCode result = server.init(SERVER_LISTEN_PORT, MAX_CONNECTIONS);
@@ -77,7 +80,7 @@ int main()
 
     server.getHostName();
 
-    while (ClientHandler::numClients() < 5) //temporary code to auto shutdown server 
+    while (true)
     {
         result = server.runOnce();
         if (result != StatusCode::SUCCESS)
@@ -93,8 +96,6 @@ int main()
 
 /*
     ###### TODOS #####
-
-    Make max connections actually function
     Figure out how to allow the server to be shutdown gracefully instead of just closing the program 
            - Use SIGINT from <csignal> to catch CTRL+C
 
@@ -103,13 +104,8 @@ int main()
 /*
 *   ##### ASSIGNMENT TODOS #####
         1.1 
-            - on server startup, prompt user for TCP port number, chat capacity, and the command character
             - display the server host ip and port using gethostname() and getaddrinfo() to the server console when started
         1.2
             - display command character
-        1.3
-            - help command
-        1.4
-            - add user registration via the /register <username> <password> commmand (store details in a hashtable for uniqueness
 
 */
