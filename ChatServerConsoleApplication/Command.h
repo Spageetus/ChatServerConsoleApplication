@@ -51,4 +51,5 @@ namespace Commands
 	extern Command logout;
 	extern Command status; 
 	extern Command help;
+	extern Command users;
 }

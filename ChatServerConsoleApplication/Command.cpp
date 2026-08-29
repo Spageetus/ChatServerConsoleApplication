@@ -219,4 +219,16 @@ namespace Commands
 		R"(help <command?>:
 - command (optional):
 	- displays more detailed information about a specific command)");
+
+	extern Command users = Command("users", 0, [](Client* client, std::vector<std::string> args)
+		{
+			server_response resp;
+			resp.message = "Online users:\n";
+			for (const auto& [username, client] : ClientHandler::getRegisteredClients().getUsernameMap())
+			{
+				resp.message += username + "\n";
+			}
+			return resp;
+		},
+		R"(users: displays all active users)");
 }

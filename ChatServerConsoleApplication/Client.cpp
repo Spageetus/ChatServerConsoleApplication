@@ -45,5 +45,5 @@ void Client::registerClient(std::string username)
 void Client::logout()
 {
 	this->username = "Client" + std::to_string((int)this->userSocket);
-	this->registered = true;
+	this->registered = false;
 }

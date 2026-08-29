@@ -27,9 +27,6 @@ public:
 	fd_set getReadyWriteSockets();
 
 	void shutdownAll();
-
-	void freeMemory();
-
-
+	//void freeMemory();
 };
 

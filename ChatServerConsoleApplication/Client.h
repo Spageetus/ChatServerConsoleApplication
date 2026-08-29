@@ -12,8 +12,6 @@ private:
 	SOCKET userSocket;
 	bool registered = false;
 
-	
-
 public:
 	Client(SOCKET clientSocket);
 	Client(SOCKET clientSocket, std::string username) : userSocket(clientSocket), username(username) {};
