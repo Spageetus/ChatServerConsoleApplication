@@ -99,6 +99,8 @@ int main()
     Figure out how to allow the server to be shutdown gracefully instead of just closing the program 
            - Use SIGINT from <csignal> to catch CTRL+C
 
+    Make sure accounts that are signed in cannot register new accounts
+    
 */
 
 /*
@@ -107,5 +109,23 @@ int main()
             - display the server host ip and port using gethostname() and getaddrinfo() to the server console when started
         1.2
             - display command character
+
+*/
+
+/*
+    When sending messages: format as followed
+
+    send as two separate messages, one detailing who sent the message, the second containing the untouched original message
+
+    [Received]: <SOURCE CLIENT>
+    [Received]: message
+
+    
+
+    
+    //Reciever end
+    [Received]: <SOURCE CLIENT> whispered:
+    [Recieved]: message
+
 
 */

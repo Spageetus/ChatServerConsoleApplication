@@ -26,11 +26,27 @@ Command::Command(std::string commandName, int numParameters, std::function<serve
 }
 
 
-
+//the code that runs BEFORE the command specific code
 server_response Command::run(Client* client, std::vector<std::string> args)
 {
 	//make sure the number of arguments matches the expected number
 	server_response resp;
+	//if using the msg command, combine the 2nd-nth arguments to reform the message
+	if (this->commandString == "msg")
+	{
+		std::vector<std::string> newArgs;
+		newArgs.push_back(args[0]);
+		args.erase(args.begin());
+		std::string msg = "";
+		for (int i = 0; i < args.size(); i++)
+		{
+			msg += args[i];
+			if (i != args.size() - 1) msg += ' ';
+		}
+		newArgs.push_back(msg);
+		args.clear();
+		args = newArgs;
+	}
 	//allow the help function to take either 0 or 1 argument
 	if (this->commandString == "help")
 	{
@@ -231,4 +247,25 @@ namespace Commands
 			return resp;
 		},
 		R"(users: displays all active users)");
+
+	//currently might work if unregistered users use it. also need to do some shit with the args so it counts the entire message as ONE parameter
+	extern Command msg = Command("msg", 2, [](Client* client, std::vector<std::string> args)
+		{
+			server_response resp;
+
+			std::string username = args[0];
+			Client* dstClient = ClientHandler::getRegisteredClients().getClient(username);
+			if (dstClient == nullptr)
+			{
+				resp.status = StatusCode::USER_NOT_FOUND;
+				resp.dstClient = nullptr;
+				return resp;
+			}
+			resp.dstClient = dstClient;
+			resp.srcClient = client;
+			resp.message = args[1];
+			resp.status = StatusCode::SUCCESS;
+			return resp;
+
+		});
 }

@@ -5,8 +5,8 @@
 //}
 
 // sentinel definition (one translation unit)
-const Client* Client::InvalidClient = new Client(Client::invalidSocket, "<invalid>");
-const Client* Client::AllClients = new Client(Client::invalidSocket, "<allClients>");
+const Client* Client::InvalidClient = new Client(Client::invalidSocket, "<INVALID_CLIENT>");
+
 
 Client::Client(SOCKET sock)
 {

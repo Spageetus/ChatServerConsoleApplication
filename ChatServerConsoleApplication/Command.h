@@ -52,4 +52,6 @@ namespace Commands
 	extern Command status; 
 	extern Command help;
 	extern Command users;
+	extern Command msg;
+
 }

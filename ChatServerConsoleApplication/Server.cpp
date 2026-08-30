@@ -21,9 +21,13 @@ StatusCode Server::init(uint16_t port, uint16_t maxConnections)
 	result = bind(this->listenSocket, (SOCKADDR*)&serverAddr, sizeof(serverAddr));
 	if (result == SOCKET_ERROR) return StatusCode::BIND_ERROR;
 
+
+
 	//store the server's listening socket separate from the rest of the connected sockets
 	FD_ZERO(&this->serverSocketContainer); //clear it just in case
 	FD_SET(this->listenSocket, &this->serverSocketContainer);
+
+	Server::ServerClient = new Client(this->listenSocket, "[SERVER]");
 
 	result = listen(this->listenSocket, maxConnections);
 	if (result == SOCKET_ERROR) return StatusCode::SETUP_ERROR;
@@ -171,73 +175,53 @@ StatusCode Server::getNewConnections()
 	return StatusCode::SUCCESS;
 }
 
-StatusCode Server::readFrom(ClientList clients)
+//
+StatusCode Server::listenTo(ClientList clients)
 {
-	//get a list of all the unregistered clients who have sent something to the server
-	fd_set sockets = clients.getReadyReadSockets();
-	if (sockets.fd_count == 0) return StatusCode::SUCCESS;
-
-	for (int i = 0; i < sockets.fd_count; i++)
+	fd_set readySockets = clients.getReadyReadSockets();
+	for (int i = 0; i < readySockets.fd_count; i++)
 	{
-		//for each ready socket, attempt to read from it
-		SOCKET s = sockets.fd_array[i];
-		Client* currentClient = clients.getClient(s);
-		if (currentClient == Client::InvalidClient)
-		{
-			std::cout << "Client does not exist" << std::endl;
-			continue;
-		}
-		StatusCode result = this->readMessage(s, this->readBuffer);
-		if (result == StatusCode::DISCONNECT) //check if socket disconnected
-		{
-			std::cout << currentClient->getUsername() << " has disconnected" << std::endl;
-			ClientHandler::removeClient(currentClient);
-			continue;
-		}
-		else if (result != StatusCode::SUCCESS) //check for any other errors
-		{
-			//client was forcibly disconnected (I dont think pressing stop on the client is supposed to work like this?)
-			int error = WSAGetLastError();
-			if (error == WSAECONNRESET)
-			{
-				std::cout << "A user has been forcefully disconnected (WSAECONNRESET)" << std::endl;
-				ClientHandler::removeClient(currentClient);
-				continue;
-			}
+		Client* c = clients.getClient(readySockets.fd_array[i]);
+		if (c == nullptr) continue; //if for whatever reason, the client does not exist
+		message_info mi = this->listenTo(c);
 
-			std::cout << "Last WSA error code: " << error << std::endl;
-			std::cout << "Status Code: " << (int)result << std::endl;
-
-			return StatusCode::FAILURE;
-		}
-
-		server_response resp = MessageParser::parseMessage(currentClient, std::string(this->readBuffer));
-	
-		std::cout << resp.message << std::endl;
-
-		if (resp.status == StatusCode::SHUTDOWN) return StatusCode::SHUTDOWN;
+		if (mi.status != StatusCode::SUCCESS) return mi.status;
+		//now I need to parse the message
+		MessageParser::parseMessage(mi);
 
 
-		if (currentClient->isRegistered() && resp.status == StatusCode::SUCCESS && resp.dstClient == nullptr)
-		{
-			this->relayMessage(currentClient, ClientHandler::getRegisteredClients(), resp.message.data());
-		}
-		else if(resp.dstClient == currentClient)
-		{
-			this->sendMessage(currentClient->getSocket(), resp.message.data(), resp.message.size());
-		}
 	}
-	return StatusCode::SUCCESS;
+}
+
+message_info Server::listenTo(Client* client)
+{
+	message_info mi;
+	mi.srcClient = client;
+	mi.status = this->readMessage(client->getSocket(), this->readBuffer);
+	mi.ogMsg = std::string(this->readBuffer);
+	if (mi.status == StatusCode::DISCONNECT || (mi.status != StatusCode::SUCCESS && WSAGetLastError() == WSAECONNRESET)) //
+	{
+		mi.dstClient = Server::ServerClient;
+		this->print(client->getUsername() + " has disconnected");
+		return mi;
+	}
+	if (mi.status == StatusCode::PARAMETER_ERROR)
+	{
+		std::cout << "RECEIVED TOO MANY BYTES IN A SINGLE MESSAGE" << std::endl;
+		return mi;
+	}
+	else if (mi.status != StatusCode::SUCCESS) return mi;
+	return mi;
 }
 
 StatusCode Server::listenToUnregisteredClients()
 {
-	return this->readFrom(ClientHandler::getUnRegisteredClients());
+	return this->listenTo(ClientHandler::getUnRegisteredClients());
 }
 
 StatusCode Server::listenToRegisteredClients()
 {
-	return this->readFrom(ClientHandler::getRegisteredClients());
+	return this->listenTo(ClientHandler::getRegisteredClients());
 }
 
 void Server::stop()
@@ -252,6 +236,7 @@ void Server::stop()
 	this->active = false;
 	delete[] this->readBuffer;
 	delete[] this->writeBuffer;
+	delete Server::ServerClient;
 }
 
 
@@ -271,3 +256,17 @@ void Server::removeClient(SOCKET clientSocket)
 	shutdown(clientSocket, SD_BOTH);
 	closesocket(clientSocket);
 }
+
+
+//used so I can print using strings or char*
+void Server::print(const std::string msg, bool dontLog = false)
+{
+	this->print(msg.data(), dontLog);
+}
+
+//TODO: also log the message
+void Server::print(const char* msg, bool dontLog = false)
+{
+	std::cout << msg << std::endl;
+}
+

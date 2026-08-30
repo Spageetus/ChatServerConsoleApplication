@@ -35,9 +35,13 @@ private:
 
 	int maxClients; 
 
+	
+
 
 public:
 	static const int32_t MAX_MESSAGE_LENGTH = 256;
+
+	
 
 	bool isActive() { return this->active; }
 	std::string getHostName();
@@ -53,6 +57,7 @@ public:
 	StatusCode sendMessage(SOCKET clientSock, char* msg, int32_t length);
 	StatusCode relayMessage(Client* sender, ClientList toReceive, char* msg);
 
+	static Client* ServerClient;
 
 	StatusCode runOnce();
 	
@@ -63,11 +68,18 @@ public:
 	
 	StatusCode sendWelcomeMessage(Client c);
 
-	StatusCode readFrom(ClientList clients);
+	StatusCode listenTo(ClientList clients);
+	message_info listenTo(Client* client);
+
+
+	//StatusCode readFromClient(Client* client);
 
 	StatusCode listenToRegisteredClients();
 
 	StatusCode listenToUnregisteredClients();
+
+	void print(const std::string msg, bool dontLog);
+	void print(const char* msg, bool dontLog);
 
 };
 

@@ -18,7 +18,8 @@ public:
 	
 	static const SOCKET invalidSocket = INVALID_SOCKET;
 	static const Client* InvalidClient;
-	static const Client* AllClients; //used as a way to tell the server to send a message to all clients
+	
+
 	
 	bool isActive() { return this->userSocket != SOCKET_ERROR; } //I think this should work?
 	bool isRegistered() { return this->registered; };
