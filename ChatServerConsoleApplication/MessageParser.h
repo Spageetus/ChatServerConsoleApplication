@@ -1,5 +1,6 @@
 #pragma once
 #include "Client.h"
+#include "Server.h"
 #include "definitions.h"
 class MessageParser
 {
@@ -16,8 +17,7 @@ public:
 	/// <param name="info"></param>
 	/// <returns></returns>
 	static void parseMessage(message_info& info);
-
-	static void formatMessage(message_info& info);
+	static std::vector<std::string> splitBySize(std::string msg, size_t maxSize, char delim);
 };
 
 

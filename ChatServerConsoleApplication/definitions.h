@@ -31,9 +31,9 @@ struct server_response //used by message parser and command handler to tell the 
 
 struct message_info
 {
-	StatusCode status; //lowkey not sure if I even need this
-	Client* srcClient; //pointer to the client who originally sent the message
-	Client* dstClient; //pointer to the client who will receive the message
+	StatusCode status = StatusCode::FAILURE; //lowkey not sure if I even need this
+	Client* srcClient = nullptr; //pointer to the client who originally sent the message
+	Client* dstClient = ALL_CLIENTS; //pointer to the client who will receive the message
 
 	std::string header; // will contain a formatted header that will be sent before the rest of the message
 	std::string ogMsg; //the original message

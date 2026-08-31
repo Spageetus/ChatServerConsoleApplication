@@ -101,6 +101,7 @@ int main()
 
     Make sure accounts that are signed in cannot register new accounts
     
+    Add the ability to send messages that are LONGER than the 256 limit
 */
 
 /*

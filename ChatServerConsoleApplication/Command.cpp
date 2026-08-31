@@ -1,5 +1,6 @@
 #include "Command.h"
 #include "ClientHandler.h"
+#include "Server.h"
 
 Command::Command(std::string commandName, int numParameters) : commandString(commandName), expectedArguments(numParameters), runFunc(Command::tempFunction)
 {
@@ -9,65 +10,43 @@ Command::Command(std::string commandName, int numParameters) : commandString(com
 	Command::commandsMap.insert({ commandName, this });
 }
 
-Command::Command(std::string commandName, int numParameters, std::function<server_response(Client* client, std::vector<std::string>)> func) : Command(commandName, numParameters)
+Command::Command(std::string commandName, int numParameters, std::function<void(message_info& msg, std::vector<std::string>)> func) : Command(commandName, numParameters)
 {
 	this->runFunc = func;
 }
 
-Command::Command(std::string commandName, int numParameters, std::function<server_response(Client* client, std::vector<std::string>)> func, std::string helpString) : Command(commandName, numParameters, func)
+Command::Command(std::string commandName, int numParameters, std::function<void(message_info& msg, std::vector<std::string>)> func, std::string helpString) : Command(commandName, numParameters, func)
 {
 	this->helpString = helpString;
 	this->detailedHelpString = helpString;
 }
 
-Command::Command(std::string commandName, int numParameters, std::function<server_response(Client* client, std::vector<std::string>)> func, std::string helpString, std::string detailedHelpString) : Command(commandName, numParameters, func, helpString)
+Command::Command(std::string commandName, int numParameters, std::function<void(message_info& msg, std::vector<std::string>)> func, std::string helpString, std::string detailedHelpString) : Command(commandName, numParameters, func, helpString)
 {
 	this->detailedHelpString = detailedHelpString;
 }
 
 
 //the code that runs BEFORE the command specific code
-server_response Command::run(Client* client, std::vector<std::string> args)
+void Command::run(message_info& msg, std::vector<std::string> args)
 {
-	//make sure the number of arguments matches the expected number
-	server_response resp;
-	//if using the msg command, combine the 2nd-nth arguments to reform the message
-	if (this->commandString == "msg")
+	//if the current function is the help function and has no parameters, add "ALL" as the parameter
+	if (*this == Commands::help && args.size() == 0)
 	{
-		std::vector<std::string> newArgs;
-		newArgs.push_back(args[0]);
-		args.erase(args.begin());
-		std::string msg = "";
-		for (int i = 0; i < args.size(); i++)
-		{
-			msg += args[i];
-			if (i != args.size() - 1) msg += ' ';
-		}
-		newArgs.push_back(msg);
-		args.clear();
-		args = newArgs;
-	}
-	//allow the help function to take either 0 or 1 argument
-	if (this->commandString == "help")
-	{
-		if (args.size() > 1)
-		{
-			resp.status = StatusCode::PARAMETER_ERROR;
-			resp.message = "expected 0-1 arguments, but recieved " + std::to_string(args.size());
-			return resp;
-		}
-	}
-	else if (args.size() != this->expectedArguments)
-	{
-		resp.status = StatusCode::PARAMETER_ERROR;
-		resp.message = "expected " + std::to_string(this->expectedArguments) + " arguments, but recieved " + std::to_string(args.size());
-		return resp;
+		args.push_back("ALL");
 	}
 
-	//run the attached function
-	resp = this->runFunc(client, args);
-	return resp;
+	//if an invalid number of arguments are given, send an error message back
+	if (args.size() != this->expectedArguments)
+	{
+		msg.status = StatusCode::PARAMETER_ERROR;
+		msg.dstClient = msg.srcClient;
+		msg.srcClient = Server::ServerClient;
+		msg.dstClientMsg = "PARAMETER ERROR: expected " + std::to_string(this->expectedArguments) + " arguments, but " + std::to_string(args.size()) + " were received";
+		return;
+	}
 
+	this->runFunc(msg, args);
 }
 
 namespace Commands
@@ -85,102 +64,134 @@ namespace Commands
 	//creating register command
 
 	//TODO: allow for different error messages based on what exactly went wrong while registering a user
-	extern Command registerUser = Command("register", 2, [](Client* client, std::vector<std::string> args)
+	extern Command registerUser = Command("register", 2, [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response resp;
+			Client* currentClient = msg.srcClient;
+			//this command just needs to send a response back to the current user
+			msg.dstClient = msg.srcClient;
+			msg.srcClient = Server::ServerClient;
 
 			std::string username = args[0];
 			std::string password = args[1];
-			if (Credentials::addNew(username, password))
+
+			if (currentClient->isRegistered())
 			{
-				resp.status = StatusCode::SUCCESS;
-				resp.message = "Successfully created a new account!";
+				msg.status = StatusCode::FAILURE;
+				msg.dstClientMsg = "Please logout before creating a new account";
+				return;
+			}
+
+			//check for an invalid username
+			if (!Credentials::validateUsername(username))
+			{
+				msg.status = StatusCode::PARAMETER_ERROR;
+				if (Credentials::usernameTaken(username)) msg.dstClientMsg = "That username is already taken. Please choose a new username.";
+				else msg.dstClientMsg = "INVALID USERNAME. Please ensure usernames do not start with numbers or special characters";
+				return;
+			}
+			//check for an invalid password
+			if (!Credentials::validatePassword(password))
+			{
+				msg.status = StatusCode::PARAMETER_ERROR;
+				msg.dstClientMsg = "INVALID PASSWORD";
+				return;
+			}
+			//attempt to actually create the new login
+			bool created = Credentials::addNew(username, password);
+			if (created == true)
+			{
+				msg.status == StatusCode::SUCCESS;
+				msg.dstClientMsg = "Successfully created your new account!";
 			}
 			else
 			{
-				resp.status = StatusCode::FAILURE;
-				resp.message = "Unable to register your account";
+				msg.status == StatusCode::FAILURE;
+				msg.dstClientMsg = "Unable to create your account";
 			}
-			return resp;
+
 		}, 
 		R"(register <username> <password>: attempts to create a new account)",
 		R"(register <username> <password>: attempts to create a new account
 -username:
-	- only start with letters
+	- start with letters
 	- may contain '_'
 	- max len: 24
 -password:
 	- no spaces
 	- length: 4-64 chars)");
 	//create login command
-	extern  Command login = Command("login", 2, [](Client* client, std::vector<std::string> args)
+	extern Command login = Command("login", 2, [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response resp;
-			resp.srcClient = client;
-			resp.dstClient = client;
+			Client* currentClient = msg.srcClient;
+
+			msg.dstClient = msg.srcClient;
+			msg.srcClient = Server::ServerClient;
 
 			std::string username = args[0];
 			std::string password = args[1];
-			if (client->isRegistered())
+
+			if (currentClient->isRegistered())
 			{
-				resp.status == StatusCode::FAILURE;
-				resp.message = "You are already logged in, use the logout command first";
-				return resp;
+				msg.status = StatusCode::FAILURE;
+				msg.dstClientMsg = "Please logout before attempting to log in again";
+				return;
 			}
-			//check if the user is currently logged in
-			if (ClientHandler::getRegisteredClients().getClient(username) != nullptr)
+			
+			if (ClientHandler::getAllClients().getClient(username) != nullptr)
 			{
-				resp.status == StatusCode::FAILURE;
-				resp.message = "A user with that name is already logged in";
-				return resp;
+				msg.status = StatusCode::FAILURE;
+				msg.dstClientMsg = "A user with that name is already logged in.";
+				return;
 			}
+
 			if (Credentials::verifyLogin(username, password))
 			{
-				resp.status = StatusCode::SUCCESS;
-				resp.message = "Successfully logged in!";
-				ClientHandler::registerClient(client, username);
-				return resp;
+				//register the new client
+				msg.status = StatusCode::SUCCESS;
+				msg.dstClientMsg = "Welcome " + username + "!";
+				ClientHandler::registerClient(currentClient, username);
 			}
 			else
 			{
-				resp.status = StatusCode::FAILURE;
-				resp.message = "Invalid username or password";
-				
-				return resp;
+				msg.status = StatusCode::PARAMETER_ERROR;
+				msg.dstClientMsg = "Invalid username or password";
+				return;
 			}
-			return resp;
+			return;
 		},
 		R"(login <username> <password>)");
 	//creating logout command
-	extern Command logout = Command("logout", 0, [](Client* client, std::vector<std::string> args)
+	extern Command logout = Command("logout", 0, [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response resp;
-			resp.dstClient = client;
-			if (!client->isRegistered())
+			Client* currentClient = msg.srcClient;
+			msg.dstClient = currentClient;
+			msg.srcClient = Server::ServerClient;
+
+			if (!currentClient->isRegistered())
 			{
-				resp.message = "User is already logged out";
-				resp.status = StatusCode::SUCCESS;
+				msg.dstClientMsg = "User is already logged out";
+				msg.status = StatusCode::SUCCESS;
 			}
 			else
 			{
-				ClientHandler::unregisterClient(client);
-				resp.message = "Successfully logged out!";
-				resp.status = StatusCode::SUCCESS;
+				ClientHandler::unregisterClient(currentClient);
+				msg.dstClientMsg = "Successfully logged out!";
+				msg.status = StatusCode::SUCCESS;
 			}
-			return resp;
 		},
 		"logout: self explanatory");
 
-	extern Command status = Command("status", 0, [](Client* client, std::vector<std::string> args)
+	extern Command status = Command("status", 0, [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response resp;
-			resp.dstClient = client;
+			Client* currentClient = msg.srcClient;
+			msg.dstClient = currentClient;
+			msg.srcClient = Server::ServerClient;
 
-			resp.message = "\nUsername: " + client->getUsername()
-				+ "\nSocket: " + std::to_string((int)client->getSocket())
-				+ "\nRegistered?: " + (client->isRegistered() ? "true" : "false");
-			resp.status == StatusCode::SUCCESS;
-			return resp;
+
+			msg.dstClientMsg = "\nUsername: " + currentClient->getUsername()
+				+ "\nSocket: " + std::to_string((int)currentClient->getSocket())
+				+ "\nRegistered?: " + (currentClient->isRegistered() ? "true" : "false");
+			msg.status == StatusCode::SUCCESS;
 		},
 		R"(status: displays information about the current user)",
 		R"(status: displays information about the current user
@@ -189,26 +200,34 @@ namespace Commands
 - Registered: displays if the user is currently logged in or not)");
 
 	
-	extern Command shutdown = Command("shutdown", 0, [](Client* client, std::vector<std::string> args)
+	extern Command shutdown = Command("shutdown", 0, [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response resp;
-			resp.dstClient = client;
-			resp.message = "INVALID COMMAND";
-			if (client->getUsername() == "admin")
+			Client* currentClient = msg.srcClient;
+
+			if (currentClient->getUsername() == "admin")
 			{
-				resp.status = StatusCode::SHUTDOWN;
-				resp.message = "SHUTDOWN COMMAND RUN BY ADMIN ACCOUNT";
+				msg.dstClient = ALL_CLIENTS;
+				msg.srcClient = Server::ServerClient;
+				msg.status = StatusCode::SHUTDOWN;
+				msg.dstClientMsg = "SHUTDOWN COMMAND RUN BY ADMIN ACCOUNT";
+				return;
 			}
-			return resp;
+			else
+			{
+				Commands::invalidCommand.run(msg, {});
+			}
 		});
 
-	extern Command help = Command("help", 0, [](Client* client, std::vector<std::string> args)
+	extern Command help = Command("help", 1, [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response resp;
+			Client* currentClient = msg.srcClient;
+			msg.dstClient = currentClient;
+			msg.srcClient = Server::ServerClient;
+
 			std::string commandHelpString = "\n";
 
 			//no argument given
-			if (args.size() == 0)
+			if (args[0] == "ALL")
 			{
 				commandHelpString = "";
 				for (auto& [commandName, command] : Command::commandsMap)
@@ -224,48 +243,56 @@ namespace Commands
 				if (c.getCommandString() == Commands::invalidCommand.getCommandString())
 				{
 					commandHelpString = "INVALID COMMAND";
-					resp.status = StatusCode::PARAMETER_ERROR;
+					msg.status = StatusCode::PARAMETER_ERROR;
 				}
 				else commandHelpString += c.getDetailedHelpString();
 			}
-			resp.message = commandHelpString;
-			return resp;
+			msg.dstClientMsg = commandHelpString;
 		},
 		R"(help <command?>: displays available commands)",
 		R"(help <command?>:
 - command (optional):
 	- displays more detailed information about a specific command)");
 
-	extern Command users = Command("users", 0, [](Client* client, std::vector<std::string> args)
+	extern Command users = Command("users", 0, [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response resp;
-			resp.message = "Online users:\n";
+			Client* currentClient = msg.srcClient;
+			msg.dstClient = currentClient;
+			msg.srcClient = Server::ServerClient;
+
+			msg.dstClientMsg = "Online users:\n";
 			for (const auto& [username, client] : ClientHandler::getRegisteredClients().getUsernameMap())
 			{
-				resp.message += username + "\n";
+				msg.dstClientMsg += username + "\n";
 			}
-			return resp;
 		},
 		R"(users: displays all active users)");
 
 	//currently might work if unregistered users use it. also need to do some shit with the args so it counts the entire message as ONE parameter
-	extern Command msg = Command("msg", 2, [](Client* client, std::vector<std::string> args)
+	extern Command msg = Command("msg", 2, [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response resp;
+			Client* currentClient = msg.srcClient;
+
+			if (!currentClient->isRegistered())
+			{
+				msg.dstClient = currentClient;
+				msg.srcClient = Server::ServerClient;
+				msg.dstClientMsg = "You need to be logged in to use this command";
+				return;
+			}
 
 			std::string username = args[0];
 			Client* dstClient = ClientHandler::getRegisteredClients().getClient(username);
 			if (dstClient == nullptr)
 			{
-				resp.status = StatusCode::USER_NOT_FOUND;
-				resp.dstClient = nullptr;
-				return resp;
+				msg.dstClient = currentClient;
+				msg.srcClient = Server::ServerClient;
+				msg.dstClientMsg = "User not found";
+				return;
 			}
-			resp.dstClient = dstClient;
-			resp.srcClient = client;
-			resp.message = args[1];
-			resp.status = StatusCode::SUCCESS;
-			return resp;
 
-		});
+			msg.dstClient = dstClient;
+			msg.dstClientMsg = msg.ogMsg;
+		}, "msg: <username> <message>", "msg: <username> <message>\n\t-username: the name of the user you want to send a private message to\n\t-message: the message you want to send");
 }
+

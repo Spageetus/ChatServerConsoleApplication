@@ -55,9 +55,10 @@ public:
 	
 	StatusCode readMessage(SOCKET clientSock, char* inputBuffer);
 	StatusCode sendMessage(SOCKET clientSock, char* msg, int32_t length);
+	StatusCode sendTo(Client* client, std::string msg);
 	StatusCode relayMessage(Client* sender, ClientList toReceive, char* msg);
 
-	static Client* ServerClient;
+	static inline Client* ServerClient = nullptr;
 
 	StatusCode runOnce();
 	
@@ -71,15 +72,11 @@ public:
 	StatusCode listenTo(ClientList clients);
 	message_info listenTo(Client* client);
 
+	StatusCode sendResponse(message_info& msg);
 
-	//StatusCode readFromClient(Client* client);
 
-	StatusCode listenToRegisteredClients();
-
-	StatusCode listenToUnregisteredClients();
-
-	void print(const std::string msg, bool dontLog);
-	void print(const char* msg, bool dontLog);
+	void print(const std::string msg, bool dontLog=false);
+	void print(const char* msg, bool dontLog=false);
 
 };
 

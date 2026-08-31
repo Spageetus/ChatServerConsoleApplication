@@ -5,6 +5,7 @@
 
 #include "definitions.h"
 #include "Credentials.h"
+#include "Server.h"
 
 
 class Command
@@ -14,30 +15,36 @@ private:
 	std::string commandString;
 	std::string helpString;
 	std::string detailedHelpString;
-	std::function<server_response(Client*, std::vector<std::string> args)> runFunc; //lambda function 
+	std::function<void(message_info& msg, std::vector<std::string> args)> runFunc; //lambda function 
 	
 
-	static inline std::function<server_response(Client* client, std::vector<std::string> args)> tempFunction = [](Client* client, std::vector<std::string> args)
+	static inline std::function<void(message_info& msg, std::vector<std::string> args)> tempFunction = [](message_info& msg, std::vector<std::string> args)
 		{
-			server_response defaultResponse;
-			defaultResponse.status = StatusCode::FAILURE;
-			defaultResponse.message = "INVALID COMMAND";
-			return defaultResponse;
+			msg.status = StatusCode::PARAMETER_ERROR;
+			msg.dstClient = msg.srcClient;
+			msg.srcClient = Server::ServerClient;
+			msg.dstClientMsg = "INVALID COMMAND";
 		};
 
 	
 
 public:
 	Command(std::string commandName, int numParameters);
-	Command(std::string commandName, int numParameters, std::function<server_response(Client* client, std::vector<std::string>)> func);
-	Command(std::string commandName, int numParameters, std::function<server_response(Client* client, std::vector<std::string>)> func, std::string helpString);
-	Command(std::string commandName, int numParameters, std::function<server_response(Client* client, std::vector<std::string>)> func, std::string helpString, std::string detailedHelpString);
-	server_response run(Client* client, std::vector<std::string> args);
+	Command(std::string commandName, int numParameters, std::function<void(message_info& msg, std::vector<std::string>)> func);
+	Command(std::string commandName, int numParameters, std::function<void(message_info& msg, std::vector<std::string>)> func, std::string helpString);
+	Command(std::string commandName, int numParameters, std::function<void(message_info& msg, std::vector<std::string>)> func, std::string helpString, std::string detailedHelpString);
+	void run(message_info& msg, std::vector<std::string> args);
 	
 	std::string getCommandString() { return this->commandString; };
 	std::string getHelpString() { return this->helpString; };
 	std::string getDetailedHelpString() { return this->detailedHelpString; };
 	static inline std::unordered_map<std::string, Command*> commandsMap;
+
+
+	bool operator==(const Command& other) const
+	{
+		return this->commandString == other.commandString;
+	}
 };
 
 namespace Commands

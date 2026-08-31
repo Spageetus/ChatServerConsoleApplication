@@ -27,6 +27,7 @@ StatusCode Server::init(uint16_t port, uint16_t maxConnections)
 	FD_ZERO(&this->serverSocketContainer); //clear it just in case
 	FD_SET(this->listenSocket, &this->serverSocketContainer);
 
+	//create a Client object so messages can be marked as being sent/received to/from the server
 	Server::ServerClient = new Client(this->listenSocket, "[SERVER]");
 
 	result = listen(this->listenSocket, maxConnections);
@@ -67,12 +68,18 @@ StatusCode Server::readMessage(SOCKET clientSock, char* inputBuffer)
 //TODO: figure out why clients are recieving more data than they should
 StatusCode Server::sendMessage(SOCKET clientSock, char* data, int32_t length)
 {
-	if (length < 0 || length > 255) return StatusCode::PARAMETER_ERROR;
+	data[length] = '\0';
+	length++;
+
+	if (length < 0 || length > 255)
+	{
+		std::cout << "ATTEMPTING TO SEND A MESSAGE WITH LENGTH " << length << std::endl;
+	}
 
 	//fixes the issue of characters from previous messages still being visible.
 	//TODO: try to fix the root cause of the issue
-	data[length] = '\0';
-	length++;
+	
+	
 
 	//first send the length of the message
 	int result = sendTcpData(clientSock, (char*)&length, 1);
@@ -131,11 +138,11 @@ StatusCode Server::runOnce()
 	}
 	
 	//Check for messages from registered users
-	result = this->listenToRegisteredClients();
+	result = this->listenTo(ClientHandler::getRegisteredClients());
 	if (result != StatusCode::SUCCESS) return result;
 
 	//Check for messages from UNregistered users
-	result = this->listenToUnregisteredClients();
+	result = this->listenTo(ClientHandler::getUnRegisteredClients());
 	if (result != StatusCode::SUCCESS) return result;
 
 	return StatusCode::SUCCESS;
@@ -166,12 +173,24 @@ StatusCode Server::getNewConnections()
 
 	//add the new client to our client list
 	std::cout << "New Client Connected!" << std::endl;
-	ClientHandler::addClient(newClient);
+	Client* c = ClientHandler::addClient(newClient);
 
 	//send the client a welcome message!
-	StatusCode result = this->sendMessage(newClient, this->welcomeMessage.data(), this->welcomeMessage.size());
+	//StatusCode result = this->sendMessage(newClient, this->welcomeMessage.data(), this->welcomeMessage.size());
+	StatusCode result = this->sendTo(c, this->welcomeMessage);
 	if (result != StatusCode::SUCCESS) return result;
 
+	return StatusCode::SUCCESS;
+}
+
+StatusCode Server::sendTo(Client* client, std::string message)
+{
+	std::vector<std::string> splitMessage = MessageParser::splitBySize(message, this->MAX_MESSAGE_LENGTH-1, '\n');
+	for (std::string s : splitMessage)
+	{
+		StatusCode status = this->sendMessage(client->getSocket(), s.data(), s.size());
+		if (status != StatusCode::SUCCESS) return status;
+	}
 	return StatusCode::SUCCESS;
 }
 
@@ -184,13 +203,43 @@ StatusCode Server::listenTo(ClientList clients)
 		Client* c = clients.getClient(readySockets.fd_array[i]);
 		if (c == nullptr) continue; //if for whatever reason, the client does not exist
 		message_info mi = this->listenTo(c);
-
+		if (mi.status == StatusCode::DISCONNECT)
+		{
+			ClientHandler::removeClient(c);
+			continue;
+		}
 		if (mi.status != StatusCode::SUCCESS) return mi.status;
+		//print the original message to the server console
+		this->print("<" + mi.srcClient->getUsername() + ">: " + mi.ogMsg);
 		//now I need to parse the message
 		MessageParser::parseMessage(mi);
+		
 
+		this->print(mi.header);
+		this->print(mi.dstClientMsg);
 
+		//finally, send the message back
+		StatusCode status = this->sendResponse(mi);
+		if (status != StatusCode::SUCCESS) return status;
 	}
+	return StatusCode::SUCCESS;
+}
+
+
+StatusCode Server::sendResponse(message_info& msg)
+{
+	if (msg.dstClient == ALL_CLIENTS)
+	{
+		this->relayMessage(msg.srcClient, ClientHandler::getRegisteredClients(), msg.header.data());
+		this->relayMessage(msg.srcClient, ClientHandler::getRegisteredClients(), msg.dstClientMsg.data());
+	}
+	else
+	{
+		this->sendTo(msg.dstClient, msg.header.data());
+		this->sendTo(msg.dstClient, msg.dstClientMsg.data());
+	}
+
+	return StatusCode::SUCCESS;
 }
 
 message_info Server::listenTo(Client* client)
@@ -203,6 +252,7 @@ message_info Server::listenTo(Client* client)
 	{
 		mi.dstClient = Server::ServerClient;
 		this->print(client->getUsername() + " has disconnected");
+		mi.status = StatusCode::DISCONNECT;
 		return mi;
 	}
 	if (mi.status == StatusCode::PARAMETER_ERROR)
@@ -214,15 +264,7 @@ message_info Server::listenTo(Client* client)
 	return mi;
 }
 
-StatusCode Server::listenToUnregisteredClients()
-{
-	return this->listenTo(ClientHandler::getUnRegisteredClients());
-}
 
-StatusCode Server::listenToRegisteredClients()
-{
-	return this->listenTo(ClientHandler::getRegisteredClients());
-}
 
 void Server::stop()
 {
@@ -259,13 +301,13 @@ void Server::removeClient(SOCKET clientSocket)
 
 
 //used so I can print using strings or char*
-void Server::print(const std::string msg, bool dontLog = false)
+void Server::print(const std::string msg, bool dontLog)
 {
 	this->print(msg.data(), dontLog);
 }
 
 //TODO: also log the message
-void Server::print(const char* msg, bool dontLog = false)
+void Server::print(const char* msg, bool dontLog)
 {
 	std::cout << msg << std::endl;
 }
