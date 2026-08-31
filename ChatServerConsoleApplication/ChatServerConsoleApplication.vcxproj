@@ -145,6 +145,7 @@
     <ClCompile Include="ClientList.cpp" />
     <ClCompile Include="Command.cpp" />
     <ClCompile Include="Credentials.cpp" />
+    <ClCompile Include="Logger.cpp" />
     <ClCompile Include="MessageParser.cpp" />
     <ClCompile Include="platform.cpp" />
     <ClCompile Include="Server.cpp" />
@@ -156,6 +157,7 @@
     <ClInclude Include="Command.h" />
     <ClInclude Include="Credentials.h" />
     <ClInclude Include="definitions.h" />
+    <ClInclude Include="Logger.h" />
     <ClInclude Include="MessageParser.h" />
     <ClInclude Include="platform.h" />
     <ClInclude Include="Server.h" />

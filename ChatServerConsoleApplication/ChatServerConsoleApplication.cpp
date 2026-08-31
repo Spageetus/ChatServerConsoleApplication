@@ -4,6 +4,7 @@
 #include "ClientHandler.h"
 #include "Credentials.h"
 #include "Command.h"
+#include "Logger.h"
 
 //memory leak detection
 #define _CRTDBG_MAP_ALLOC
@@ -65,6 +66,7 @@ int main()
     Credentials::init();
     MessageParser::commandCharacter = COMMAND_CHARACTER;
 
+    Logger::init(COMMAND_CHARACTER, 64);
 
     //setup the server
     Server server;

@@ -60,5 +60,7 @@ namespace Commands
 	extern Command help;
 	extern Command users;
 	extern Command msg;
+	extern Command getlog;
+	extern Command getcommandlog;
 
 }

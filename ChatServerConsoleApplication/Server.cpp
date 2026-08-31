@@ -185,7 +185,8 @@ StatusCode Server::getNewConnections()
 
 StatusCode Server::sendTo(Client* client, std::string message)
 {
-	std::vector<std::string> splitMessage = MessageParser::splitBySize(message, this->MAX_MESSAGE_LENGTH-1, '\n');
+	std::vector<std::string> splitMessage = MessageParser::splitBySize(message, this->MAX_MESSAGE_LENGTH-4, '\n');
+	
 	for (std::string s : splitMessage)
 	{
 		StatusCode status = this->sendMessage(client->getSocket(), s.data(), s.size());

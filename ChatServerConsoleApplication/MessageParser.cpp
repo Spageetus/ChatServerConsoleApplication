@@ -2,6 +2,7 @@
 #include <sstream>
 #include <vector>
 #include "Command.h"
+#include "Logger.h"
 
 //if limit is 0, split at every delim instance
 std::vector<std::string> split(const std::string& s, char delim, int limit = 0)
@@ -70,6 +71,7 @@ std::vector<std::string> MessageParser::splitBySize(std::string msg, size_t maxS
 
 void MessageParser::parseMessage(message_info& msg)
 {
+	bool userRegistered = msg.srcClient->isRegistered();
 	//if message starts with command character, run the command
 	if (msg.ogMsg[0] == MessageParser::commandCharacter)
 	{
@@ -100,8 +102,12 @@ void MessageParser::parseMessage(message_info& msg)
 		msg.srcClient = Server::ServerClient;
 		msg.dstClientMsg = "Other users cannot see your messages until you are logged in";
 	}
-	msg.dstClientMsg = msg.ogMsg;
+	else //otherwise, send the original message
+	{
+		msg.dstClientMsg = msg.ogMsg;
+	}
 	MessageParser::formatMessage(msg);
+	if(userRegistered) Logger::log(msg);  //doing it this way bc it was logging user login information :|
 	return;
 }
 

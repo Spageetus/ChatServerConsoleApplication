@@ -1,6 +1,7 @@
 #include "Command.h"
 #include "ClientHandler.h"
 #include "Server.h"
+#include "Logger.h"
 
 Command::Command(std::string commandName, int numParameters) : commandString(commandName), expectedArguments(numParameters), runFunc(Command::tempFunction)
 {
@@ -275,6 +276,7 @@ namespace Commands
 
 			if (!currentClient->isRegistered())
 			{
+				msg.status = StatusCode::FAILURE;
 				msg.dstClient = currentClient;
 				msg.srcClient = Server::ServerClient;
 				msg.dstClientMsg = "You need to be logged in to use this command";
@@ -285,6 +287,7 @@ namespace Commands
 			Client* dstClient = ClientHandler::getRegisteredClients().getClient(username);
 			if (dstClient == nullptr)
 			{
+				msg.status = StatusCode::FAILURE;
 				msg.dstClient = currentClient;
 				msg.srcClient = Server::ServerClient;
 				msg.dstClientMsg = "User not found";
@@ -293,6 +296,57 @@ namespace Commands
 
 			msg.dstClient = dstClient;
 			msg.dstClientMsg = msg.ogMsg;
+			msg.status = StatusCode::SUCCESS;
 		}, "msg: <username> <message>", "msg: <username> <message>\n\t-username: the name of the user you want to send a private message to\n\t-message: the message you want to send");
+
+	extern Command getlog = Command("getlog", 0, [](message_info& msg, std::vector<std::string> args)
+		{
+			Client* currentClient = msg.srcClient;
+			msg.dstClient = currentClient;
+			msg.srcClient = Server::ServerClient;
+			if (!currentClient->isRegistered())
+			{
+				msg.dstClientMsg = "Log in before you can retrieve a log";
+				msg.status = StatusCode::FAILURE;
+				return;
+
+			}
+			msg.status = StatusCode::SUCCESS;
+			std::vector<std::string> messageLogs = Logger::getMessageLog();
+			if (messageLogs.size() == 0)
+			{
+				msg.dstClientMsg = "No logs found";
+				return;
+			}
+			for (std::string s : messageLogs)
+			{
+				msg.dstClientMsg += s + "\n";
+			}
+		}, "getlog: retrieves a list of recent messages");
+
+	extern Command getCommandLog = Command("getcommandlog", 0, [](message_info& msg, std::vector<std::string> args)
+		{
+			Client* currentClient = msg.srcClient;
+			msg.dstClient = currentClient;
+			msg.srcClient = Server::ServerClient;
+			if (!currentClient->isRegistered())
+			{
+				msg.dstClientMsg = "Log in before you can retrieve a log";
+				msg.status = StatusCode::FAILURE;
+				return;
+
+			}
+			msg.status = StatusCode::SUCCESS;
+			std::vector<std::string> messageLogs = Logger::getCommandLog();
+			if (messageLogs.size() == 0)
+			{
+				msg.dstClientMsg = "No logs found";
+				return;
+			}
+			for (std::string s : messageLogs)
+			{
+				msg.dstClientMsg += s + "\n";
+			}
+		}, "getcommandlog: retrieves a list of recent commands");
 }
 
